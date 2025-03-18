@@ -291,22 +291,23 @@ def component_formative_mark_analysis(conflicts_array, proposed_name, proposed_c
     - Assess the impact of these differences on consumer perception and the likelihood of confusion.
     
     Step 8.d.2: Two-Letter Differences
-    - PRE-FILTER: Before listing any trademarks with two-letter differences, run them through the validation function.
-    - Only list trademarks that differ by two letters from each formative component AND cover identical or similar goods/services.
-    - DO NOT include or mention any trademarks that were filtered out by the validation function.
+    - List ONLY trademarks that differ by two letters from each formative component AND cover relevant goods/services.
+    - DO NOT include or mention ANY trademarks with unrelated goods/services.
     - Example: For "POWER," consider "POWTR" or "PIWER." For "HOLD," consider "HULD" or "HILD."
-    - Evaluate whether these differences create confusion in meaning or pronunciation and overlap with goods/services.
+    - Evaluate whether these differences create confusion in meaning or pronunciation.
+    - Only include marks with relevant goods/services.
     
     Step 8.e: Component Distinctiveness Analysis
     - For each component, classify its distinctiveness as Generic, Descriptive, Suggestive, Arbitrary, or Fanciful.
     - Consider the component in relation to the specific goods/services.
     - Example: For "POWER" in electrical equipment, it would be descriptive; for food services, it would be arbitrary.
     
-    Step 8.f: Component Combination Analysis
-    - Analyze how the components work together to create synergy.
-    - Example: "POWERHOLD" combines strength and secure grip, potentially competing with marks like "ENERGYSECURE" or "GRIPFORCE."
-    - Document risks of confusion or overlap when the components are combined.
-    
+    Step 8.f: Functional/Conceptual Relationship Analysis
+    - For compound marks, analyze how the meaning of one component might relate functionally to another component in EXISTING marks.
+    - Example: For "MIRAGRIP," identify marks where a component has a functional relationship similar to how "MIRA" relates to "GRIP" (e.g., "VISIONHOLD," "WONDERCLUTCH").
+    - Only include marks with relevant goods/services.
+    - Document the functional relationship between components and why they create similar commercial impressions.
+     
     Step 8.g: Overall Component Risk Assessment
     - Provide a summary table with findings on each component:
       * Component name
@@ -317,7 +318,7 @@ def component_formative_mark_analysis(conflicts_array, proposed_name, proposed_c
       * Component-specific risk level (Low, Low-Medium, Medium, Medium-High, High)
     - Summarize key findings about the risks associated with each individual component.
     
-    IMPORTANT: We have already filtered out trademarks with unrelated goods/services. All trademarks in your input ARE relevant to the proposed trademark's goods/services. You do not need to filter them further.
+    IMPORTANT REMINDER: We have already filtered out ALL trademarks with unrelated goods/services. DO NOT include, mention, or refer to any trademark with unrelated goods/services in your analysis, even as examples of what's excluded. Your analysis should ONLY include trademarks with goods/services relevant to the proposed trademark.
     """
     
     client = get_azure_client()
@@ -368,7 +369,7 @@ def final_validation_and_assessment(conflicts_array, proposed_name, proposed_cla
     - All trademarks with unrelated goods/services have already been filtered out. No further filtering is needed.
     
     Step 10: Overall Risk Assessment
-    - Integrate all findings from previous steps.
+    - Integrate all findings from previous steps (Steps 1-8) to provide a single, comprehensive risk assessment.
     - Assess the trademark's overall viability and risk on this scale:
       * Low: Very few/no conflicts, highly distinctive mark
       * Low-Medium: Some minor conflicts, moderately distinctive mark
@@ -382,6 +383,7 @@ def final_validation_and_assessment(conflicts_array, proposed_name, proposed_cla
       * Crowded field status (if applicable, reduce risk by one level)
       * Evidence of aggressive enforcement by owners of similar marks
       * Distinctiveness of the compound mark and its components
+    - Provide a detailed explanation of the risk level, including specific reasons for the assessment.
     
     Step 11: Summary of Findings
     - Summarize the overall trademark analysis, including:
@@ -435,6 +437,96 @@ def final_validation_and_assessment(conflicts_array, proposed_name, proposed_cla
     except Exception as e:
         return f"Error during final validation and assessment: {str(e)}"
 
+def clean_and_format_opinion(comprehensive_opinion):
+    """
+    Process the comprehensive trademark opinion to:
+    1. Maintain comprehensive listing of all relevant trademark hits
+    2. Remove duplicated content while preserving all unique trademark references
+    3. Format the opinion for better readability
+    4. Ensure consistent structure with clear sections
+    
+    Args:
+        comprehensive_opinion: Raw comprehensive opinion from previous steps
+        
+    Returns:
+        A cleaned, formatted, and optimized trademark opinion
+    """
+    client = get_azure_client()
+    
+    system_prompt = """
+    You are a trademark attorney specializing in clear, comprehensive trademark opinions. 
+    
+    Your task is to refine a comprehensive trademark opinion by:
+    
+    1. PRESERVING ALL TRADEMARK HITS: Ensure that EVERY identified trademark hit from the original opinion is preserved and clearly listed in appropriate categories (identical marks, phonetically similar marks, marks with letter differences, etc.).
+    
+    2. ORGANIZING HITS SYSTEMATICALLY: Present all trademark hits in a well-structured format at the beginning of each relevant section, with clear categorization.
+    
+    3. ELIMINATING REDUNDANCY: Remove instances where the same trademark information is repeated multiple times in different sections, but MAINTAIN the first comprehensive mention of each.
+    
+    4. REDUCING UNNECESSARY VERBOSITY: Make explanations direct and concise without losing substance.
+    
+    5. ENHANCING READABILITY: Use clear headings, tables where appropriate, and consistent formatting.
+    
+    6. MAINTAINING COMPREHENSIVE ANALYSIS: Ensure all component analyses (for compound marks) are preserved with their respective trademark hits.
+    
+    Your output structure should follow this format:
+    
+    # REFINED TRADEMARK OPINION: [MARK NAME]
+    
+    ## Class: [CLASS]
+    ## Goods and Services: [GOODS/SERVICES]
+    
+    # I. COMPREHENSIVE TRADEMARK HIT ANALYSIS
+    ## A. Identical Marks
+    [LIST ALL IDENTICAL MARKS WITH RELEVANT DETAILS]
+    
+    ## B. Phonetically/Semantically Similar Marks
+    [LIST ALL PHONETICALLY/SEMANTICALLY SIMILAR MARKS WITH RELEVANT DETAILS]
+    
+    ## C. Marks with Letter Differences
+    [LIST ALL MARKS WITH LETTER DIFFERENCES, CATEGORIZED BY ONE-LETTER AND TWO-LETTER DIFFERENCES]
+    
+    # II. COMPONENT ANALYSIS (FOR COMPOUND MARKS)
+    [ANALYSIS OF EACH COMPONENT WITH RESPECTIVE TRADEMARK HITS]
+    
+    # III. RISK ASSESSMENT AND SUMMARY
+    [CLEAR RISK ASSESSMENT AND RECOMMENDATIONS]
+    
+    IMPORTANT: 
+    - Do NOT eliminate any identified trademark conflicts
+    - Preserve all meaningful risk assessments and legal conclusions
+    - Maintain all relevant analysis from the original
+    - Ensure that EVERY trademark hit from the original opinion is included
+    """
+    
+    user_message = f"""
+    Please refine the following trademark opinion to create a clean, comprehensive, and well-structured final version that lists ALL trademark hits while eliminating unnecessary duplication and verbosity:
+    
+    {comprehensive_opinion}
+    """
+    
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message}
+            ],
+            temperature=0.0,
+            max_tokens=4000,  # Increased token limit to ensure comprehensive output
+        )
+        
+        # Extract and return the response content
+        if response.choices and len(response.choices) > 0:
+            return response.choices[0].message.content
+        else:
+            return "Error: No response received from the language model when refining the opinion."
+    except Exception as e:
+        # If there's an error, return the original opinion with a note
+        return f"{comprehensive_opinion}\n\nNote: An attempt to refine this opinion resulted in an error: {str(e)}"
+
+
 def opinion_response(conflicts_array, proposed_name, proposed_class, proposed_goods_services):
     """
     Generate a comprehensive trademark opinion by breaking down the analysis into separate functions
@@ -487,7 +579,19 @@ def opinion_response(conflicts_array, proposed_name, proposed_class, proposed_go
 *Note: {excluded_count} trademarks with unrelated goods/services were excluded from this analysis.*
         """
         
-        return comprehensive_opinion
+        # NEW STEP: Clean and format the opinion to remove duplicates and unnecessary verbosity
+        refined_opinion = clean_and_format_opinion(comprehensive_opinion)
+        
+        # Quality check: Ensure refined opinion isn't too condensed
+        # If refined opinion is less than 40% of original or doesn't contain key sections,
+        # revert to the original with some basic formatting
+        if (len(refined_opinion) < len(comprehensive_opinion) * 0.4 or 
+            "COMPREHENSIVE TRADEMARK HIT ANALYSIS" not in refined_opinion):
+            print("Warning: Refined opinion failed quality check. Using formatted original opinion.")
+            # Format the original opinion with clear headings but minimal other changes
+            return comprehensive_opinion
+            
+        return refined_opinion
 
     except Exception as e:
         error_message = f"An error occurred during the trademark analysis process: {str(e)}"
