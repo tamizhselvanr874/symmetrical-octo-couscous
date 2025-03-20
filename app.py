@@ -91,6 +91,42 @@ def validate_trademark_relevance(conflicts_array, proposed_goods_services):
     
     return relevant_conflicts, excluded_count
 
+def filter_by_gpt_response(conflicts, gpt_json):
+    """
+    Removes trademarks that GPT flagged as lacking goods/services overlap.
+    
+    Args:
+        conflicts: Original list of trademark conflicts
+        gpt_json: JSON object from GPT with 'results' key
+    
+    Returns:
+        Filtered list of conflicts that GPT identified as overlapping
+    """
+    # Parse the GPT response if it's a string
+    if isinstance(gpt_json, str):
+        try:
+            gpt_json = json.loads(gpt_json)
+        except json.JSONDecodeError:
+            # If JSON is invalid, keep original conflicts
+            return conflicts
+    
+    gpt_results = gpt_json.get("results", [])
+    
+    # Build a set of marks with overlap for quick membership checking
+    overlapping_marks = {
+        result["mark"]
+        for result in gpt_results
+        if result.get("overlap") is True
+    }
+    
+    # Retain conflicts only if they appear in overlapping_marks
+    filtered_conflicts = [
+        c for c in conflicts
+        if c.get("mark") in overlapping_marks
+    ]
+    
+    return filtered_conflicts
+
 def initial_mark_analysis(conflicts_array, proposed_name, proposed_class, proposed_goods_services):
     """
     Perform Steps 1-6: Initial Mark Analysis
@@ -133,6 +169,28 @@ def initial_mark_analysis(conflicts_array, proposed_name, proposed_class, propos
     - If it's a crowded field, the final risk assessment should be reduced by one level.
     
     IMPORTANT: We have already filtered out trademarks with unrelated goods/services. All trademarks in your input ARE relevant to the proposed trademark's goods/services. You do not need to filter them further.
+    
+    YOUR RESPONSE MUST END WITH A JSON SUMMARY in this exact format:
+    {
+      "results": [
+        {
+          "mark": "[TRADEMARK NAME]",
+          "similarity_type": "[IDENTICAL|PHONETIC|ONE_LETTER|TWO_LETTER]",
+          "overlap": true,
+          "risk_level": "[HIGH|MEDIUM|LOW]",
+          "class_match": true|false,
+          "goods_services_match": true|false
+        },
+        ...additional marks...
+      ],
+      "summary": {
+        "identical_count": [NUMBER],
+        "phonetic_count": [NUMBER],
+        "one_letter_count": [NUMBER],
+        "two_letter_count": [NUMBER],
+        "crowded_field": [true|false]
+      }
+    }
     """
     
     client = get_azure_client()
@@ -148,6 +206,12 @@ def initial_mark_analysis(conflicts_array, proposed_name, proposed_class, propos
     Goods and Services = {proposed_goods_services}
     
     Note: {excluded_count} trademarks with unrelated goods/services have already been filtered out.
+    
+    For each mark, determine:
+    - "Class Match" (True/False): Whether the mark's class exactly matches the proposed class "{proposed_class}".
+    - "Goods & Services Match" (True/False): Whether the mark's goods/services are similar to the proposed goods/services "{proposed_goods_services}".
+    
+    REMEMBER: End your response with the JSON summary as specified in the instructions.
     """
     
     try:
@@ -162,7 +226,23 @@ def initial_mark_analysis(conflicts_array, proposed_name, proposed_class, propos
         
         # Extract and return the response content
         if response.choices and len(response.choices) > 0:
-            return response.choices[0].message.content
+            content = response.choices[0].message.content
+            
+            # Extract JSON summary for further processing
+            json_match = re.search(r'```json\s*({[\s\S]*?})\s*```|({[\s\S]*?"summary"\s*:[\s\S]*?})', content)
+            if json_match:
+                json_str = json_match.group(1) or json_match.group(2)
+                try:
+                    json_data = json.loads(json_str)
+                    # Store the structured data for later filtering
+                    return {
+                        "analysis": content,
+                        "json_data": json_data
+                    }
+                except json.JSONDecodeError:
+                    pass
+            
+            return content
         else:
             return "Error: No response received from the language model."
     except Exception as e:
@@ -212,8 +292,29 @@ def overall_compound_mark_analysis(conflicts_array, proposed_name, proposed_clas
     - Document any patterns of enforcement behavior.
     
     IMPORTANT: We have already filtered out trademarks with unrelated goods/services. All trademarks in your input ARE relevant to the proposed trademark's goods/services. You do not need to filter them further.
-    """
     
+    YOUR RESPONSE MUST END WITH A JSON SUMMARY in this exact format:
+    {
+      "results": [
+        {
+          "mark": "[TRADEMARK NAME]",
+          "similarity_type": "[IDENTICAL|PHONETIC|ONE_LETTER|TWO_LETTER]",
+          "overlap": true,
+          "risk_level": "[HIGH|MEDIUM|LOW]"
+        },
+        ...additional marks...
+      ],
+      "summary": {
+        "identical_count": [NUMBER],
+        "phonetic_count": [NUMBER],
+        "one_letter_count": [NUMBER],
+        "two_letter_count": [NUMBER],
+        "crowded_field": [true|false],
+        "aggressive_enforcement": [true|false]
+      }
+    }
+    """
+
     client = get_azure_client()
     
     # Construct a message that includes the pre-filtering information
@@ -227,6 +328,8 @@ def overall_compound_mark_analysis(conflicts_array, proposed_name, proposed_clas
     Goods and Services = {proposed_goods_services}
     
     Note: {excluded_count} trademarks with unrelated goods/services have already been filtered out.
+    
+    REMEMBER: End your response with the JSON summary as specified in the instructions.
     """
     
     try:
@@ -241,7 +344,23 @@ def overall_compound_mark_analysis(conflicts_array, proposed_name, proposed_clas
         
         # Extract and return the response content
         if response.choices and len(response.choices) > 0:
-            return response.choices[0].message.content
+            content = response.choices[0].message.content
+            
+            # Extract JSON summary for further processing
+            json_match = re.search(r'```json\s*({[\s\S]*?})\s*```|({[\s\S]*?"summary"\s*:[\s\S]*?})', content)
+            if json_match:
+                json_str = json_match.group(1) or json_match.group(2)
+                try:
+                    json_data = json.loads(json_str)
+                    # Store the structured data for later filtering
+                    return {
+                        "analysis": content,
+                        "json_data": json_data
+                    }
+                except json.JSONDecodeError:
+                    pass
+            
+            return content
         else:
             return "Error: No response received from the language model."
     except Exception as e:
@@ -269,33 +388,25 @@ def component_formative_mark_analysis(conflicts_array, proposed_name, proposed_c
     FOR EACH FORMATIVE COMPONENT, perform the following detailed analysis:
     
     Step 8.b: Identical Marks Analysis for Each Component
-    - PRE-FILTER: Before listing any identical trademarks, run them through the validation function.
     - Only list trademarks that are identical to each individual formative component AND cover identical or similar goods/services.
-    - DO NOT include or mention any trademarks that were filtered out by the validation function.
     - Example: For "POWERHOLD," analyze "POWER" trademarks and "HOLD" trademarks separately.
     - If no identical marks pass validation for a component, state: "No identical trademarks covering similar goods/services were identified for [COMPONENT]."
     
     Step 8.c: Phonetic and Semantic Equivalents for Each Component
-    - PRE-FILTER: Before listing any phonetically or semantically similar trademarks, run them through the validation function.
     - Only list trademarks that are phonetically or semantically similar to each formative component AND cover identical or similar goods/services.
-    - DO NOT include or mention any trademarks that were filtered out by the validation function.
-    - Example: For "POWER," phonetically similar marks might include "POWR," "POWUR," or "PAWER." For "HOLD," similar marks might include "HOALD," "HOLLD," or "HOWLD."
+    - Example: For "POWER," phonetically similar marks might include "POWR," "POWUR," or "PAWER." 
     - Evaluate whether these similar marks overlap in goods/services and assess the likelihood of confusion.
     
     Step 8.d: Marks with Letter Differences for Each Component
     Step 8.d.1: One-Letter Differences
-    - PRE-FILTER: Before listing any trademarks with one-letter differences, run them through the validation function.
     - Only list trademarks that differ by one letter from each formative component AND cover identical or similar goods/services.
-    - DO NOT include or mention any trademarks that were filtered out by the validation function.
-    - Example: For "POWER," consider marks like "POWIR" or "POSER." For "HOLD," consider "HALD" or "HILD."
+    - Example: For "POWER," consider marks like "POWIR" or "POSER."
     - Assess the impact of these differences on consumer perception and the likelihood of confusion.
     
     Step 8.d.2: Two-Letter Differences
     - List ONLY trademarks that differ by two letters from each formative component AND cover relevant goods/services.
-    - DO NOT include or mention ANY trademarks with unrelated goods/services.
-    - Example: For "POWER," consider "POWTR" or "PIWER." For "HOLD," consider "HULD" or "HILD."
+    - Example: For "POWER," consider "POWTR" or "PIWER."
     - Evaluate whether these differences create confusion in meaning or pronunciation.
-    - Only include marks with relevant goods/services.
     
     Step 8.e: Component Distinctiveness Analysis
     - For each component, classify its distinctiveness as Generic, Descriptive, Suggestive, Arbitrary, or Fanciful.
@@ -318,7 +429,28 @@ def component_formative_mark_analysis(conflicts_array, proposed_name, proposed_c
       * Component-specific risk level (Low, Low-Medium, Medium, Medium-High, High)
     - Summarize key findings about the risks associated with each individual component.
     
-    IMPORTANT REMINDER: We have already filtered out ALL trademarks with unrelated goods/services. DO NOT include, mention, or refer to any trademark with unrelated goods/services in your analysis, even as examples of what's excluded. Your analysis should ONLY include trademarks with goods/services relevant to the proposed trademark.
+    IMPORTANT: We have already filtered out ALL trademarks with unrelated goods/services. Your analysis should ONLY include trademarks with goods/services relevant to the proposed trademark.
+    
+    YOUR RESPONSE MUST END WITH A JSON SUMMARY in this exact format:
+    {
+      "components": [
+        {
+          "component": "[COMPONENT NAME]",
+          "results": [
+            {
+              "mark": "[TRADEMARK NAME]",
+              "similarity_type": "[IDENTICAL|PHONETIC|ONE_LETTER|TWO_LETTER]",
+              "overlap": true,
+              "risk_level": "[HIGH|MEDIUM|LOW]"
+            },
+            ...additional marks for this component...
+          ],
+          "distinctiveness": "[GENERIC|DESCRIPTIVE|SUGGESTIVE|ARBITRARY|FANCIFUL]",
+          "risk_level": "[HIGH|MEDIUM-HIGH|MEDIUM|LOW-MEDIUM|LOW]"
+        },
+        ...additional components...
+      ]
+    }
     """
     
     client = get_azure_client()
@@ -334,6 +466,8 @@ def component_formative_mark_analysis(conflicts_array, proposed_name, proposed_c
     Goods and Services = {proposed_goods_services}
     
     Note: {excluded_count} trademarks with unrelated goods/services have already been filtered out.
+    
+    REMEMBER: End your response with the JSON summary as specified in the instructions.
     """
     
     try:
@@ -348,7 +482,23 @@ def component_formative_mark_analysis(conflicts_array, proposed_name, proposed_c
         
         # Extract and return the response content
         if response.choices and len(response.choices) > 0:
-            return response.choices[0].message.content
+            content = response.choices[0].message.content
+            
+            # Extract JSON summary for further processing
+            json_match = re.search(r'```json\s*({[\s\S]*?})\s*```|({[\s\S]*?"components"\s*:[\s\S]*?})', content)
+            if json_match:
+                json_str = json_match.group(1) or json_match.group(2)
+                try:
+                    json_data = json.loads(json_str)
+                    # Store the structured data for later filtering
+                    return {
+                        "analysis": content,
+                        "json_data": json_data
+                    }
+                except json.JSONDecodeError:
+                    pass
+            
+            return content
         else:
             return "Error: No response received from the language model."
     except Exception as e:
@@ -394,10 +544,28 @@ def final_validation_and_assessment(conflicts_array, proposed_name, proposed_cla
     - Provide final strategic recommendations for registration or further steps.
     - Include a note about the number of trademarks excluded from analysis due to unrelated goods/services.
     
-    IMPORTANT: All irrelevant trademarks have already been filtered out through code. Focus on providing a clear risk assessment without worrying about filtering.
+    YOUR RESPONSE MUST END WITH A JSON SUMMARY in this exact format:
+    {
+      "final_assessment": {
+        "overall_risk_level": "[HIGH|MEDIUM-HIGH|MEDIUM|LOW-MEDIUM|LOW]",
+        "crowded_field": [true|false],
+        "identical_mark_count": [NUMBER],
+        "similar_mark_count": [NUMBER],
+        "key_conflicts": ["[TRADEMARK1]", "[TRADEMARK2]", ...],
+        "recommendations": ["[RECOMMENDATION1]", "[RECOMMENDATION2]", ...]
+      }
+    }
     """
     
     client = get_azure_client()
+    
+    # Extract JSON data from previous steps if available
+    step7_json = step7_results.get("json_data", {}) if isinstance(step7_results, dict) else {}
+    step8_json = step8_results.get("json_data", {}) if isinstance(step8_results, dict) else {}
+    
+    # Extract analysis text
+    step7_analysis = step7_results.get("analysis", step7_results) if isinstance(step7_results, dict) else step7_results
+    step8_analysis = step8_results.get("analysis", step8_results) if isinstance(step8_results, dict) else step8_results
     
     # Construct a message that includes the pre-filtering information and previous results
     user_message = f"""
@@ -409,14 +577,16 @@ def final_validation_and_assessment(conflicts_array, proposed_name, proposed_cla
     Previous Analysis Results:
     
     --- Step 7 Results ---
-    {step7_results}
+    {step7_analysis}
     
     --- Step 8 Results ---
-    {step8_results}
+    {step8_analysis}
     
     Please complete the trademark analysis by performing Steps 9-11: Final Validation Check, Overall Risk Assessment, and Summary of Findings.
     
     Note: {excluded_count} trademarks with unrelated goods/services were excluded from this analysis through pre-filtering.
+    
+    REMEMBER: End your response with the JSON summary as specified in the instructions.
     """
     
     try:
@@ -431,13 +601,29 @@ def final_validation_and_assessment(conflicts_array, proposed_name, proposed_cla
         
         # Extract and return the response content
         if response.choices and len(response.choices) > 0:
-            return response.choices[0].message.content
+            content = response.choices[0].message.content
+            
+            # Extract JSON summary for further processing
+            json_match = re.search(r'```json\s*({[\s\S]*?})\s*```|({[\s\S]*?"final_assessment"\s*:[\s\S]*?})', content)
+            if json_match:
+                json_str = json_match.group(1) or json_match.group(2)
+                try:
+                    json_data = json.loads(json_str)
+                    # Store the structured data for later filtering
+                    return {
+                        "analysis": content,
+                        "json_data": json_data
+                    }
+                except json.JSONDecodeError:
+                    pass
+            
+            return content
         else:
             return "Error: No response received from the language model."
     except Exception as e:
         return f"Error during final validation and assessment: {str(e)}"
 
-def clean_and_format_opinion(comprehensive_opinion):
+def clean_and_format_opinion(comprehensive_opinion, json_data=None):
     """
     Process the comprehensive trademark opinion to:
     1. Maintain comprehensive listing of all relevant trademark hits
@@ -447,6 +633,7 @@ def clean_and_format_opinion(comprehensive_opinion):
     
     Args:
         comprehensive_opinion: Raw comprehensive opinion from previous steps
+        json_data: Optional structured JSON data from previous steps
         
     Returns:
         A cleaned, formatted, and optimized trademark opinion
@@ -454,56 +641,122 @@ def clean_and_format_opinion(comprehensive_opinion):
     client = get_azure_client()
     
     system_prompt = """
-    You are a trademark attorney specializing in clear, comprehensive trademark opinions. 
+    You are a trademark attorney specializing in clear, comprehensive trademark opinions.
     
-    Your task is to refine a comprehensive trademark opinion by:
+    FORMAT THE TRADEMARK OPINION USING THE EXACT STRUCTURE PROVIDED BELOW:
     
-    1. PRESERVING ALL TRADEMARK HITS: Ensure that EVERY identified trademark hit from the original opinion is preserved and clearly listed in appropriate categories (identical marks, phonetically similar marks, marks with letter differences, etc.).
-    
-    2. ORGANIZING HITS SYSTEMATICALLY: Present all trademark hits in a well-structured format at the beginning of each relevant section, with clear categorization.
-    
-    3. ELIMINATING REDUNDANCY: Remove instances where the same trademark information is repeated multiple times in different sections, but MAINTAIN the first comprehensive mention of each.
-    
-    4. REDUCING UNNECESSARY VERBOSITY: Make explanations direct and concise without losing substance.
-    
-    5. ENHANCING READABILITY: Use clear headings, tables where appropriate, and consistent formatting.
-    
-    6. MAINTAINING COMPREHENSIVE ANALYSIS: Ensure all component analyses (for compound marks) are preserved with their respective trademark hits.
-    
-    Your output structure should follow this format:
-    
-    # REFINED TRADEMARK OPINION: [MARK NAME]
-    
-    ## Class: [CLASS]
-    ## Goods and Services: [GOODS/SERVICES]
-    
-    # I. COMPREHENSIVE TRADEMARK HIT ANALYSIS
-    ## A. Identical Marks
-    [LIST ALL IDENTICAL MARKS WITH RELEVANT DETAILS]
-    
-    ## B. Phonetically/Semantically Similar Marks
-    [LIST ALL PHONETICALLY/SEMANTICALLY SIMILAR MARKS WITH RELEVANT DETAILS]
-    
-    ## C. Marks with Letter Differences
-    [LIST ALL MARKS WITH LETTER DIFFERENCES, CATEGORIZED BY ONE-LETTER AND TWO-LETTER DIFFERENCES]
-    
-    # II. COMPONENT ANALYSIS (FOR COMPOUND MARKS)
-    [ANALYSIS OF EACH COMPONENT WITH RESPECTIVE TRADEMARK HITS]
-    
-    # III. RISK ASSESSMENT AND SUMMARY
-    [CLEAR RISK ASSESSMENT AND RECOMMENDATIONS]
-    
-    IMPORTANT: 
-    - Do NOT eliminate any identified trademark conflicts
-    - Preserve all meaningful risk assessments and legal conclusions
-    - Maintain all relevant analysis from the original
-    - Ensure that EVERY trademark hit from the original opinion is included
+    ```
+REFINED TRADEMARK OPINION: [MARK NAME]
+Class: [Class Number]
+Goods and Services: [Goods/Services Description]
+________________________________________
+
+## BRIEF OVERVIEW
+The mark "[MARK NAME]" has been analyzed for its descriptive and formative characteristics. The analysis considers distinctiveness, market positioning, and likelihood of confusion with existing marks. Overall, the mark's characteristics suggest [risk level] with [distinctiveness level].
+
+Further details include identical mark comparisons, phonetic and semantic similarities, and component analysis.
+
+________________________________________
+
+## I. COMPREHENSIVE TRADEMARK HIT ANALYSIS
+
+### A. Identical Marks
+| Trademark | Status | Class | Similarity Description | Class Match | Goods & Services Match |
+|------------|--------|------|------------------------|-------------|------------------------|
+| [Mark 1] | [Status] | [Class] | [Similarity Description] | [True/False] | [True/False] |
+| [Mark 2] | [Status] | [Class] | [Similarity Description] | [True/False] | [True/False] |
+
+### B. Phonetically/Semantically Similar Marks
+| Trademark | Status | Class | Similarity Description | Class Match | Goods & Services Match |
+|------------|--------|------|------------------------|-------------|------------------------|
+| [Mark 1] | [Status] | [Class] | [Similarity Description] | [True/False] | [True/False] |
+| [Mark 2] | [Status] | [Class] | [Similarity Description] | [True/False] | [True/False] |
+
+________________________________________
+
+## II. COMPONENT ANALYSIS (FOR COMPOUND MARKS)
+
+### Component 1: [First Component]
+#### Identical Marks
+| Trademark | Status | Class | Similarity Description | Class Match | Goods & Services Match |
+|-----------|--------|-------|------------------------|-------------|------------------------|
+| [Mark 1] | [Status] | [Class] | [Similarity Description] | [True/False] | [True/False] |
+
+#### Phonetic and Semantic Equivalents
+| Trademark | Status | Class | Similarity Description | Class Match | Goods & Services Match |
+|-----------|--------|-------|------------------------|-------------|------------------------|
+| [Mark 1] | [Status] | [Class] | [Similarity Description] | [True/False] | [True/False] |
+
+### Component 2: [Second Component]
+#### Identical Marks
+| Trademark | Status | Class | Similarity Description | Class Match | Goods & Services Match |
+|-----------|--------|-------|------------------------|-------------|------------------------|
+| [Mark 1] | [Status] | [Class] | [Similarity Description] | [True/False] | [True/False] |
+
+#### Phonetic and Semantic Equivalents
+| Trademark | Status | Class | Similarity Description | Class Match | Goods & Services Match |
+|-----------|--------|-------|------------------------|-------------|------------------------|
+| [Mark 1] | [Status] | [Class] | [Similarity Description] | [True/False] | [True/False] |
+
+________________________________________
+
+## III. RISK ASSESSMENT AND SUMMARY
+
+### Likelihood of Confusion
+- [KEY POINT ABOUT LIKELIHOOD OF CONFUSION]
+- [ADDITIONAL POINT ABOUT LIKELIHOOD OF CONFUSION]
+
+### Descriptiveness
+- [KEY POINT ABOUT DESCRIPTIVENESS]
+
+### Overall Risk Level
+- **[OVERALL RISK LEVEL: HIGH/MEDIUM-HIGH/MEDIUM/LOW-MEDIUM/LOW]**
+- [EXPLANATION OF RISK LEVEL]
+
+### Crowded Field Analysis
+- **[CROWDED FIELD STATUS: YES/NO]**
+- [EXPLANATION OF CROWDED FIELD ANALYSIS]
+
+### Enforcement Landscape
+- [KEY POINT ABOUT ENFORCEMENT LANDSCAPE]
+- [ADDITIONAL POINT ABOUT ENFORCEMENT LANDSCAPE]
+
+### Recommendations
+1. [PRIMARY RECOMMENDATION]
+2. [SECONDARY RECOMMENDATION]
+3. [ADDITIONAL RECOMMENDATION]
+________________________________________
+
+**IMPORTANT INSTRUCTIONS:**
+1. Maintain ALL unique trademark references from the original opinion.
+2. Present trademarks in clear, easy-to-read tables following the format above.
+3. Ensure ALL findings from the original opinion are preserved but avoid redundancy.
+4. Use bullet points for key findings and numbered lists for recommendations.
+5. Include trademark search exclusions in the summary section.
+6. Ensure the final opinion is comprehensive yet concise.
+7. For each section, include all relevant trademarks without omission.
+8. Maintain the exact structure provided above with clear section headings.
+9. For each mark, determine and include:
+   - "Class Match" (True/False): Whether the mark's class exactly matches the proposed trademark's class.
+   - "Goods & Services Match" (True/False): Whether the mark's goods/services are similar to the proposed trademark's goods/services. Use semantic similarity to determine this.
     """
     
+    # Send the original opinion to be reformatted
     user_message = f"""
-    Please refine the following trademark opinion to create a clean, comprehensive, and well-structured final version that lists ALL trademark hits while eliminating unnecessary duplication and verbosity:
+    Please reformat the following comprehensive trademark opinion for clarity and readability:
     
+    Proposed Trademark: {json_data.get('proposed_name', 'N/A')}
+    Class: {json_data.get('proposed_class', 'N/A')}
+    Goods and Services: {json_data.get('proposed_goods_services', 'N/A')}
+    
+    Original Opinion:
     {comprehensive_opinion}
+    
+    Follow the exact structure provided in the instructions, ensuring all trademark references are maintained.
+    
+    For each mark in the tables, you must evaluate and include:
+    1. Class Match (True/False): Compare the mark's class to the proposed class "{json_data.get('proposed_class', 'N/A')}" and mark True only if they exactly match.
+    2. Goods & Services Match (True/False): Compare the mark's goods/services to the proposed goods/services "{json_data.get('proposed_goods_services', 'N/A')}" and mark True if they are semantically similar.
     """
     
     try:
@@ -514,89 +767,101 @@ def clean_and_format_opinion(comprehensive_opinion):
                 {"role": "user", "content": user_message}
             ],
             temperature=0.0,
-            max_tokens=4000,  # Increased token limit to ensure comprehensive output
         )
         
-        # Extract and return the response content
+        # Extract and return the formatted opinion
         if response.choices and len(response.choices) > 0:
-            return response.choices[0].message.content
-        else:
-            return "Error: No response received from the language model when refining the opinion."
-    except Exception as e:
-        # If there's an error, return the original opinion with a note
-        return f"{comprehensive_opinion}\n\nNote: An attempt to refine this opinion resulted in an error: {str(e)}"
-
-
-def opinion_response(conflicts_array, proposed_name, proposed_class, proposed_goods_services):
-    """
-    Generate a comprehensive trademark opinion by breaking down the analysis into separate functions
-    with proper validation and error handling.
-    """
-    try:
-        # First, validate and filter conflicts array
-        relevant_conflicts, excluded_count = validate_trademark_relevance(conflicts_array, proposed_goods_services)
-        
-        # Step 1-6: Initial compound mark analysis
-        initial_results = initial_mark_analysis(conflicts_array, proposed_name, proposed_class, proposed_goods_services)
-        
-        # Step 7: Overall Compound Mark Analysis
-        step7_results = overall_compound_mark_analysis(conflicts_array, proposed_name, proposed_class, proposed_goods_services)
-        
-        # Step 8: Component (Formative) Mark Analysis
-        step8_results = component_formative_mark_analysis(conflicts_array, proposed_name, proposed_class, proposed_goods_services)
-        
-        # Steps 9-11: Final Validation, Risk Assessment, and Summary
-        final_results = final_validation_and_assessment(
-            conflicts_array, 
-            proposed_name, 
-            proposed_class, 
-            proposed_goods_services, 
-            step7_results, 
-            step8_results, 
-            excluded_count
-        )
-        
-        # Combine all results into a comprehensive response
-        comprehensive_opinion = f"""
-# TRADEMARK OPINION: {proposed_name}
-
-## Class: {proposed_class}
-## Goods and Services: {proposed_goods_services}
-
-# Initial Analysis (Steps 1-6)
-{initial_results}
-
-# Step 7: Overall Compound Mark Analysis
-{step7_results}
-
-# Step 8: Component (Formative) Mark Analysis
-{step8_results}
-
-# Final Assessment (Steps 9-11)
-{final_results}
-
----
-*Note: {excluded_count} trademarks with unrelated goods/services were excluded from this analysis.*
-        """
-        
-        # NEW STEP: Clean and format the opinion to remove duplicates and unnecessary verbosity
-        refined_opinion = clean_and_format_opinion(comprehensive_opinion)
-        
-        # Quality check: Ensure refined opinion isn't too condensed
-        # If refined opinion is less than 40% of original or doesn't contain key sections,
-        # revert to the original with some basic formatting
-        if (len(refined_opinion) < len(comprehensive_opinion) * 0.4 or 
-            "COMPREHENSIVE TRADEMARK HIT ANALYSIS" not in refined_opinion):
-            print("Warning: Refined opinion failed quality check. Using formatted original opinion.")
-            # Format the original opinion with clear headings but minimal other changes
-            return comprehensive_opinion
+            formatted_opinion = response.choices[0].message.content
             
-        return refined_opinion
-
+            # Filter out rows where both "Class Match" and "Goods & Services Match" are False
+            filtered_opinion = []
+            for line in formatted_opinion.splitlines():
+                if "|" in line:  # Check if the line is part of a table
+                    parts = line.split("|")
+                    if len(parts) >= 6:  # Ensure the line has enough columns
+                        class_match = parts[4].strip().lower() == "true"
+                        goods_services_match = parts[5].strip().lower() == "true"
+                        if class_match or goods_services_match:
+                            filtered_opinion.append(line)
+                else:
+                    filtered_opinion.append(line)
+            
+            # Join the filtered lines back into a single string
+            filtered_opinion = "\n".join(filtered_opinion)
+            
+            return filtered_opinion
+        else:
+            return "Error: No response received from the language model."
     except Exception as e:
-        error_message = f"An error occurred during the trademark analysis process: {str(e)}"
-        print(error_message)
-        return error_message
+        return f"Error during opinion formatting: {str(e)}"
+
+
+def generate_trademark_opinion(conflicts_array, proposed_name, proposed_class, proposed_goods_services):
+    """
+    Generate a comprehensive trademark opinion by running the entire analysis process.
+    
+    Args:
+        conflicts_array: List of potential trademark conflicts
+        proposed_name: Name of the proposed trademark
+        proposed_class: Class of the proposed trademark
+        proposed_goods_services: Goods and services description
+        
+    Returns:
+        A comprehensive trademark opinion
+    """
+    # Pre-filter trademarks to get the excluded count
+    relevant_conflicts, excluded_count = validate_trademark_relevance(conflicts_array, proposed_goods_services)
+    
+    # Step 1-6: Initial Mark Analysis
+    print("Performing Initial Mark Analysis...")
+    step1_6_results = initial_mark_analysis(conflicts_array, proposed_name, proposed_class, proposed_goods_services)
+    
+    # Step 7: Overall Compound Mark Analysis
+    print("Performing Overall Compound Mark Analysis...")
+    step7_results = overall_compound_mark_analysis(conflicts_array, proposed_name, proposed_class, proposed_goods_services)
+    
+    # Step 8: Component (Formative) Mark Analysis
+    print("Performing Component (Formative) Mark Analysis...")
+    step8_results = component_formative_mark_analysis(conflicts_array, proposed_name, proposed_class, proposed_goods_services)
+    
+    # Steps 9-11: Final Validation, Risk Assessment, and Summary
+    print("Performing Final Validation and Assessment...")
+    final_results = final_validation_and_assessment(
+        conflicts_array, 
+        proposed_name, 
+        proposed_class, 
+        proposed_goods_services, 
+        step7_results, 
+        step8_results, 
+        excluded_count
+    )
+    
+    # Clean and format the final opinion
+    print("Cleaning and formatting the final opinion...")
+    opinion_data = {
+        "proposed_name": proposed_name,
+        "proposed_class": proposed_class,
+        "proposed_goods_services": proposed_goods_services
+    }
+    
+    # Combine all results into a comprehensive opinion
+    comprehensive_opinion = f"""
+    --- Step 1-6: Initial Mark Analysis ---
+    {step1_6_results.get('analysis', step1_6_results) if isinstance(step1_6_results, dict) else step1_6_results}
+    
+    --- Step 7: Overall Compound Mark Analysis ---
+    {step7_results.get('analysis', step7_results) if isinstance(step7_results, dict) else step7_results}
+    
+    --- Step 8: Component (Formative) Mark Analysis ---
+    {step8_results.get('analysis', step8_results) if isinstance(step8_results, dict) else step8_results}
+    
+    --- Steps 9-11: Final Validation, Risk Assessment, and Summary ---
+    {final_results.get('analysis', final_results) if isinstance(final_results, dict) else final_results}
+    """
+    
+    formatted_opinion = clean_and_format_opinion(comprehensive_opinion, opinion_data)
+    
+    return formatted_opinion
 
 # Example usage function
 def run_trademark_analysis(proposed_name, proposed_class, proposed_goods_services, conflicts_data):
@@ -621,7 +886,7 @@ def run_trademark_analysis(proposed_name, proposed_class, proposed_goods_service
             return "Error: No conflict data provided for analysis."
             
         # Run the analysis
-        opinion = opinion_response(conflicts_data, proposed_name, proposed_class, proposed_goods_services)
+        opinion = generate_trademark_opinion(conflicts_data, proposed_name, proposed_class, proposed_goods_services)
         return opinion
         
     except Exception as e:
