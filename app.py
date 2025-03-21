@@ -1,3 +1,5 @@
+# TAMIL CODE START'S HERE-------------------------------------------------------------------------------------------------------------------------
+
 import os
 from openai import AzureOpenAI
 import json
@@ -258,62 +260,68 @@ def overall_compound_mark_analysis(conflicts_array, proposed_name, proposed_clas
     
     # Create a clearer system prompt
     system_prompt = """
-    You are a trademark expert attorney specializing in trademark opinion writing.
-    
-    Perform Step 7: Overall Compound Mark Analysis using the following structure:
-    
-    a. Identical Trademarks
-    - List trademarks that are identical to the proposed trademark.
-    - Assess their potential for confusion or conflict.
-    
-    b. Phonetic and Semantic Equivalents
-    - List trademarks that are phonetically or semantically similar to the proposed trademark.
-    - Example: For "AQUASHINE," similar marks might include "AQUASHINE," "AQUACHINE," or "AKWASHINE."
-    - Evaluate the likelihood of confusion.
-    
-    c. Marks with Letter Differences
-    Step 7.c.1: One-Letter Differences
-    - List trademarks that differ by one letter from the proposed trademark.
-    - Example: For "AQUASHINE," consider marks like "AQUASHINC" or "AQUATHINE."
-    - Assess the impact on consumer perception.
-    
-    Step 7.c.2: Two-Letter Differences
-    - List trademarks that differ by two letters from the proposed trademark.
-    - Example: For "AQUASHINE," consider "AQUASHAME" or "AQUASLINE."
-    - Evaluate whether these differences create confusion.
-    
-    d. Crowded Field Analysis
-    - If Steps (b) and (c) return more than 20 similar marks, analyze ownership patterns.
-    - If over `50%` are owned by different entities, classify the field as crowded.
-    - If it's a crowded field, reduce the overall risk assessment by one level.
-    
-    e. Aggressive Enforcement and Litigious Behavior
-    - Investigate whether owners of similar trademarks have a history of aggressive enforcement.
-    - Document any patterns of enforcement behavior.
-    
-    IMPORTANT: We have already filtered out trademarks with unrelated goods/services. All trademarks in your input ARE relevant to the proposed trademark's goods/services. You do not need to filter them further.
-    
-    YOUR RESPONSE MUST END WITH A JSON SUMMARY in this exact format:
+You are a trademark expert attorney specializing in trademark opinion writing.
+
+Perform Step 7: Overall Compound Mark Analysis using the following structure:
+
+a. Identical Trademarks
+- List trademarks that are identical to the proposed trademark.
+- Assess their potential for confusion or conflict.
+
+b. Phonetic and Semantic Equivalents
+- List trademarks that are phonetically or semantically similar to the proposed trademark.
+- Example: For "AQUASHINE," similar marks might include "AQUASHINE," "AQUACHINE," or "AKWASHINE."
+- Evaluate the likelihood of confusion.
+
+c. Marks with Letter Differences
+Step 7.c.1: One-Letter Differences
+- List trademarks that differ by one letter from the proposed trademark.
+- Example: For "AQUASHINE," consider marks like "AQUASHINC" or "AQUATHINE."
+- Assess the impact on consumer perception.
+
+Step 7.c.2: Two-Letter Differences
+- List trademarks that differ by two letters from the proposed trademark.
+- Example: For "AQUASHINE," consider "AQUASHAME" or "AQUASLINE."
+- Evaluate whether these differences create confusion.
+
+d. Crowded Field Analysis
+- If Steps (b) and (c) return more than 20 similar marks, analyze ownership patterns.
+- If over `50%` are owned by different entities, classify the field as crowded.
+- If it's a crowded field, reduce the overall risk assessment by one level.
+
+e. Aggressive Enforcement and Litigious Behavior
+- Investigate whether owners of similar trademarks have a history of aggressive enforcement.
+- Identify specific owners known for litigious behavior or aggressive protection of their trademarks.
+- Document any patterns of enforcement behavior, including:
+  * Frequent opposition filings
+  * Litigation history
+  * Cease-and-desist actions
+- Provide a list of such owners and their enforcement patterns.
+
+IMPORTANT: We have already filtered out trademarks with unrelated goods/services. All trademarks in your input ARE relevant to the proposed trademark's goods/services. You do not need to filter them further.
+
+YOUR RESPONSE MUST END WITH A JSON SUMMARY in this exact format:
+{
+  "results": [
     {
-      "results": [
-        {
-          "mark": "[TRADEMARK NAME]",
-          "similarity_type": "[IDENTICAL|PHONETIC|ONE_LETTER|TWO_LETTER]",
-          "overlap": true,
-          "risk_level": "[HIGH|MEDIUM|LOW]"
-        },
-        ...additional marks...
-      ],
-      "summary": {
-        "identical_count": [NUMBER],
-        "phonetic_count": [NUMBER],
-        "one_letter_count": [NUMBER],
-        "two_letter_count": [NUMBER],
-        "crowded_field": [true|false],
-        "aggressive_enforcement": [true|false]
-      }
-    }
-    """
+      "mark": "[TRADEMARK NAME]",
+      "similarity_type": "[IDENTICAL|PHONETIC|ONE_LETTER|TWO_LETTER]",
+      "overlap": true,
+      "risk_level": "[HIGH|MEDIUM|LOW]"
+    },
+    ...additional marks...
+  ],
+  "summary": {
+    "identical_count": [NUMBER],
+    "phonetic_count": [NUMBER],
+    "one_letter_count": [NUMBER],
+    "two_letter_count": [NUMBER],
+    "crowded_field": [true|false],
+    "aggressive_enforcement": [true|false],
+    "aggressive_owners": ["[OWNER 1]", "[OWNER 2]", ...]
+  }
+}
+"""
 
     client = get_azure_client()
     
@@ -376,82 +384,79 @@ def component_formative_mark_analysis(conflicts_array, proposed_name, proposed_c
     
     # Create a clearer system prompt
     system_prompt = """
-    You are a trademark expert attorney specializing in trademark opinion writing.
-    
-    Perform Step 8: Component (Formative) Mark Analysis using the following structure:
-    
-    Step 8.a: Identify and Deconstruct the Compound Mark
-    - Confirm if the proposed trademark is a compound mark (combination of words/elements).
-    - Deconstruct it into its formative components.
-    - Example: For "POWERHOLD," identify the components "POWER" and "HOLD".
-    
-    FOR EACH FORMATIVE COMPONENT, perform the following detailed analysis:
-    
-    Step 8.b: Identical Marks Analysis for Each Component
-    - Only list trademarks that are identical to each individual formative component AND cover identical or similar goods/services.
-    - Example: For "POWERHOLD," analyze "POWER" trademarks and "HOLD" trademarks separately.
-    - If no identical marks pass validation for a component, state: "No identical trademarks covering similar goods/services were identified for [COMPONENT]."
-    
-    Step 8.c: Phonetic and Semantic Equivalents for Each Component
-    - Only list trademarks that are phonetically or semantically similar to each formative component AND cover identical or similar goods/services.
-    - Example: For "POWER," phonetically similar marks might include "POWR," "POWUR," or "PAWER." 
-    - Evaluate whether these similar marks overlap in goods/services and assess the likelihood of confusion.
-    
-    Step 8.d: Marks with Letter Differences for Each Component
-    Step 8.d.1: One-Letter Differences
-    - Only list trademarks that differ by one letter from each formative component AND cover identical or similar goods/services.
-    - Example: For "POWER," consider marks like "POWIR" or "POSER."
-    - Assess the impact of these differences on consumer perception and the likelihood of confusion.
-    
-    Step 8.d.2: Two-Letter Differences
-    - List ONLY trademarks that differ by two letters from each formative component AND cover relevant goods/services.
-    - Example: For "POWER," consider "POWTR" or "PIWER."
-    - Evaluate whether these differences create confusion in meaning or pronunciation.
-    
-    Step 8.e: Component Distinctiveness Analysis
-    - For each component, classify its distinctiveness as Generic, Descriptive, Suggestive, Arbitrary, or Fanciful.
-    - Consider the component in relation to the specific goods/services.
-    - Example: For "POWER" in electrical equipment, it would be descriptive; for food services, it would be arbitrary.
-    
-    Step 8.f: Functional/Conceptual Relationship Analysis
-    - For compound marks, analyze how the meaning of one component might relate functionally to another component in EXISTING marks.
-    - Example: For "MIRAGRIP," identify marks where a component has a functional relationship similar to how "MIRA" relates to "GRIP" (e.g., "VISIONHOLD," "WONDERCLUTCH").
-    - Only include marks with relevant goods/services.
-    - Document the functional relationship between components and why they create similar commercial impressions.
-     
-    Step 8.g: Overall Component Risk Assessment
-    - Provide a summary table with findings on each component:
-      * Component name
-      * Identical marks found
-      * Phonetically/semantically similar marks found
-      * Marks with letter differences found
-      * Distinctiveness rating
-      * Component-specific risk level (Low, Low-Medium, Medium, Medium-High, High)
-    - Summarize key findings about the risks associated with each individual component.
-    
-    IMPORTANT: We have already filtered out ALL trademarks with unrelated goods/services. Your analysis should ONLY include trademarks with goods/services relevant to the proposed trademark.
-    
-    YOUR RESPONSE MUST END WITH A JSON SUMMARY in this exact format:
+You are a trademark expert attorney specializing in trademark opinion writing.
+
+Perform Step 8: Component (Formative) Mark Analysis using the following structure:
+
+Step 8.a: Identify and Deconstruct the Compound Mark
+- Confirm if the proposed trademark is a compound mark (combination of words/elements).
+- Deconstruct it into its formative components.
+- Example: For "POWERHOLD," identify the components "POWER" and "HOLD".
+
+FOR EACH FORMATIVE COMPONENT, perform the following detailed analysis:
+
+Step 8.b: Identical Marks Analysis for Each Component
+- Only list trademarks that are identical to each individual formative component AND cover identical or similar goods/services.
+- Example: For "POWERHOLD," analyze "POWER" trademarks and "HOLD" trademarks separately.
+- If no identical marks pass validation for a component, state: "No identical trademarks covering similar goods/services were identified for [COMPONENT]."
+
+Step 8.c: Phonetic and Semantic Equivalents for Each Component
+- Only list trademarks that are phonetically or semantically similar to each formative component AND cover identical or similar goods/services.
+- Example: For "POWER," phonetically similar marks might include "POWR," "POWUR," or "PAWER." 
+- Evaluate whether these similar marks overlap in goods/services and assess the likelihood of confusion.
+
+Step 8.d: Marks with Letter Differences for Each Component
+Step 8.d.1: One-Letter Differences
+- Only list trademarks that differ by one letter from each formative component AND cover identical or similar goods/services.
+- Example: For "POWER," consider marks like "POWIR" or "POSER."
+- Assess the impact of these differences on consumer perception and the likelihood of confusion.
+
+Step 8.d.2: Two-Letter Differences
+- List ONLY trademarks that differ by two letters from each formative component AND cover relevant goods/services.
+- Example: For "POWER," consider "POWTR" or "PIWER."
+- Evaluate whether these differences create confusion in meaning or pronunciation.
+
+Step 8.e: Component Distinctiveness Analysis
+- For each component, classify its distinctiveness as Generic, Descriptive, Suggestive, Arbitrary, or Fanciful.
+- Consider the component in relation to the specific goods/services.
+- Example: For "POWER" in electrical equipment, it would be descriptive; for food services, it would be arbitrary.
+
+Step 8.f: Functional/Conceptual Relationship Analysis
+- For compound marks, analyze how the meaning of one component might relate functionally to another component in EXISTING marks.
+- Example: For "MIRAGRIP," identify marks where a component has a functional relationship similar to how "MIRA" relates to "GRIP" (e.g., "VISIONHOLD," "WONDERCLUTCH").
+- Only include marks with relevant goods/services.
+- Document the functional relationship between components and why they create similar commercial impressions.
+ 
+Step 8.g: Overall Component Risk Assessment
+- Provide a summary table with findings on each component:
+  * Component name
+  * Identical marks found
+  * Phonetically/semantically similar marks found
+  * Marks with letter differences found
+  * Distinctiveness rating
+- Summarize key findings about the risks associated with each individual component.
+
+IMPORTANT: We have already filtered out ALL trademarks with unrelated goods/services. Your analysis should ONLY include trademarks with goods/services relevant to the proposed trademark.
+
+YOUR RESPONSE MUST END WITH A JSON SUMMARY in this exact format:
+{
+  "components": [
     {
-      "components": [
+      "component": "[COMPONENT NAME]",
+      "results": [
         {
-          "component": "[COMPONENT NAME]",
-          "results": [
-            {
-              "mark": "[TRADEMARK NAME]",
-              "similarity_type": "[IDENTICAL|PHONETIC|ONE_LETTER|TWO_LETTER]",
-              "overlap": true,
-              "risk_level": "[HIGH|MEDIUM|LOW]"
-            },
-            ...additional marks for this component...
-          ],
-          "distinctiveness": "[GENERIC|DESCRIPTIVE|SUGGESTIVE|ARBITRARY|FANCIFUL]",
-          "risk_level": "[HIGH|MEDIUM-HIGH|MEDIUM|LOW-MEDIUM|LOW]"
+          "mark": "[TRADEMARK NAME]",
+          "similarity_type": "[IDENTICAL|PHONETIC|ONE_LETTER|TWO_LETTER]",
+          "overlap": true
         },
-        ...additional components...
-      ]
-    }
-    """
+        ...additional marks for this component...
+      ],
+      "distinctiveness": "[GENERIC|DESCRIPTIVE|SUGGESTIVE|ARBITRARY|FANCIFUL]"
+    },
+    ...additional components...
+  ]
+}
+"""
     
     client = get_azure_client()
     
@@ -785,7 +790,7 @@ ________________________________________
                             filtered_opinion.append(line)
                 else:
                     filtered_opinion.append(line)
-            
+
             # Join the filtered lines back into a single string
             filtered_opinion = "\n".join(filtered_opinion)
             
@@ -891,3 +896,5 @@ def run_trademark_analysis(proposed_name, proposed_class, proposed_goods_service
         
     except Exception as e:
         return f"Error running trademark analysis: {str(e)}"
+
+# TAMIL CODE END'S HERE ---------------------------------------------------------------------------------------------------------------------------
