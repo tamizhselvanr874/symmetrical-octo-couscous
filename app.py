@@ -654,101 +654,83 @@ def clean_and_format_opinion(comprehensive_opinion, json_data=None):
 REFINED TRADEMARK OPINION: [MARK NAME]
 Class: [Class Number]
 Goods and Services: [Goods/Services Description]
-________________________________________
 
-## BRIEF OVERVIEW
-The mark "[MARK NAME]" has been analyzed for its descriptive and formative characteristics. The analysis considers distinctiveness, market positioning, and likelihood of confusion with existing marks. Overall, the mark's characteristics suggest [risk level] with [distinctiveness level].
-
-Further details include identical mark comparisons, phonetic and semantic similarities, and component analysis.
-
-________________________________________
-
-## I. COMPREHENSIVE TRADEMARK HIT ANALYSIS
-
-### A. Identical Marks
+Section I: Comprehensive Trademark Hit Analysis
+(a) Identical Marks:
 | Trademark | Status | Class | Similarity Description | Class Match | Goods & Services Match |
 |------------|--------|------|------------------------|-------------|------------------------|
 | [Mark 1] | [Status] | [Class] | [Similarity Description] | [True/False] | [True/False] |
-| [Mark 2] | [Status] | [Class] | [Similarity Description] | [True/False] | [True/False] |
 
-### B. Phonetically/Semantically Similar Marks
-| Trademark | Status | Class | Similarity Description | Class Match | Goods & Services Match |
-|------------|--------|------|------------------------|-------------|------------------------|
-| [Mark 1] | [Status] | [Class] | [Similarity Description] | [True/False] | [True/False] |
-| [Mark 2] | [Status] | [Class] | [Similarity Description] | [True/False] | [True/False] |
+(b) One Letter and Two Letter Analysis:
+| Trademark | Status | Class | Similarity Description | Difference Type | Class Match | Goods & Services Match |
+|------------|--------|------|------------------------|----------------|-------------|------------------------|
+| [Mark 1] | [Status] | [Class] | [Similarity Description] | [One/Two Letter] | [True/False] | [True/False] |
 
-________________________________________
+(c) Phonetically, Semantically & Functionally Similar Analysis:
+| Trademark | Status | Class | Similarity Description | Similarity Type | Class Match | Goods & Services Match |
+|------------|--------|------|------------------------|-----------------|-------------|------------------------|
+| [Mark 1] | [Status] | [Class] | [Similarity Description] | [Phonetic/Semantic/Functional] | [True/False] | [True/False] |
 
-## II. COMPONENT ANALYSIS (FOR COMPOUND MARKS)
+Section II: Component Analysis
+(a) Color Formative Marks:
 
-### Component 1: [First Component]
-#### Identical Marks
-| Trademark | Status | Class | Similarity Description | Class Match | Goods & Services Match |
-|-----------|--------|-------|------------------------|-------------|------------------------|
-| [Mark 1] | [Status] | [Class] | [Similarity Description] | [True/False] | [True/False] |
-
-#### Phonetic and Semantic Equivalents
+Component 1: [First Component]
 | Trademark | Status | Class | Similarity Description | Class Match | Goods & Services Match |
 |-----------|--------|-------|------------------------|-------------|------------------------|
 | [Mark 1] | [Status] | [Class] | [Similarity Description] | [True/False] | [True/False] |
 
-### Component 2: [Second Component]
-#### Identical Marks
+Component 2: [Second Component]
 | Trademark | Status | Class | Similarity Description | Class Match | Goods & Services Match |
 |-----------|--------|-------|------------------------|-------------|------------------------|
 | [Mark 1] | [Status] | [Class] | [Similarity Description] | [True/False] | [True/False] |
 
-#### Phonetic and Semantic Equivalents
-| Trademark | Status | Class | Similarity Description | Class Match | Goods & Services Match |
-|-----------|--------|-------|------------------------|-------------|------------------------|
-| [Mark 1] | [Status] | [Class] | [Similarity Description] | [True/False] | [True/False] |
+(b) Crowded Field Analysis:
+- **[CROWDED FIELD STATUS: YES/NO]**
+- [EXPLANATION OF CROWDED FIELD ANALYSIS]
+- [ADJUSTED RISK LEVEL IF APPLICABLE]
 
-________________________________________
+Section III: Risk Assessment and Summary
 
-## III. RISK ASSESSMENT AND SUMMARY
-
-### Likelihood of Confusion
+Likelihood of Confusion:
 - [KEY POINT ABOUT LIKELIHOOD OF CONFUSION]
 - [ADDITIONAL POINT ABOUT LIKELIHOOD OF CONFUSION]
 
-### Descriptiveness
+Descriptiveness:
 - [KEY POINT ABOUT DESCRIPTIVENESS]
 
-### Overall Risk Level
-- **[OVERALL RISK LEVEL: HIGH/MEDIUM-HIGH/MEDIUM/LOW-MEDIUM/LOW]**
+Overall Risk Level:
+- **[OVERALL RISK LEVEL: HIGH/MEDIUM-HIGH/MEDIUM/MEDIUM-LOW/LOW]**
 - [EXPLANATION OF RISK LEVEL]
 
-### Crowded Field Analysis
-- **[CROWDED FIELD STATUS: YES/NO]**
-- [EXPLANATION OF CROWDED FIELD ANALYSIS]
-
-### Enforcement Landscape
-- [KEY POINT ABOUT ENFORCEMENT LANDSCAPE]
-- [ADDITIONAL POINT ABOUT ENFORCEMENT LANDSCAPE]
-
-### Recommendations
+Recommendations:
 1. [PRIMARY RECOMMENDATION]
 2. [SECONDARY RECOMMENDATION]
 3. [ADDITIONAL RECOMMENDATION]
-________________________________________
+    ```
 
-**IMPORTANT INSTRUCTIONS:**
-1. Maintain ALL unique trademark references from the original opinion.
-2. Present trademarks in clear, easy-to-read tables following the format above.
-3. Ensure ALL findings from the original opinion are preserved but avoid redundancy.
-4. Use bullet points for key findings and numbered lists for recommendations.
-5. Include trademark search exclusions in the summary section.
-6. Ensure the final opinion is comprehensive yet concise.
-7. For each section, include all relevant trademarks without omission.
-8. Maintain the exact structure provided above with clear section headings.
-9. For each mark, determine and include:
-   - "Class Match" (True/False): Whether the mark's class exactly matches the proposed trademark's class.
-   - "Goods & Services Match" (True/False): Whether the mark's goods/services are similar to the proposed trademark's goods/services. Use semantic similarity to determine this.
+    **IMPORTANT INSTRUCTIONS:**
+    1. Maintain ALL unique trademark references from the original opinion.
+    2. Present trademarks in clear, easy-to-read tables following the format above.
+    3. Ensure ALL findings from the original opinion are preserved but avoid redundancy.
+    4. Use bullet points for key findings and numbered lists for recommendations.
+    5. Include trademark search exclusions in the summary section.
+    6. Ensure the final opinion is comprehensive yet concise.
+    7. For each section, include all relevant trademarks without omission.
+    8. Maintain the exact structure provided above with clear section headings.
+    9. For each mark, determine and include:
+       - "Class Match" (True/False): Whether the mark's class exactly matches the proposed trademark's class.
+       - "Goods & Services Match" (True/False): Whether the mark's goods/services are similar to the proposed trademark's goods/services. Use semantic similarity to determine this.
+    10. Follow the specified structure exactly:
+        - Section I focuses on overall hits, including One/Two Letter Analysis
+        - Section II focuses only on component hits, without One/Two Letter Analysis
+        - In Section II, perform Crowded Field Analysis and adjust risk accordingly
+    11. Label components correctly (e.g., "Marks containing [Component]" instead of "Identical Marks")
+    12. State "None" when no results are found for a particular subsection
     """
     
     # Send the original opinion to be reformatted
     user_message = f"""
-    Please reformat the following comprehensive trademark opinion for clarity and readability:
+    Please reformat the following comprehensive trademark opinion according to the refined structure:
     
     Proposed Trademark: {json_data.get('proposed_name', 'N/A')}
     Class: {json_data.get('proposed_class', 'N/A')}
@@ -762,6 +744,14 @@ ________________________________________
     For each mark in the tables, you must evaluate and include:
     1. Class Match (True/False): Compare the mark's class to the proposed class "{json_data.get('proposed_class', 'N/A')}" and mark True only if they exactly match.
     2. Goods & Services Match (True/False): Compare the mark's goods/services to the proposed goods/services "{json_data.get('proposed_goods_services', 'N/A')}" and mark True if they are semantically similar.
+    
+    IMPORTANT REMINDERS:
+    - Section I should include ALL hits (overall hits), not just compound mark hits
+    - Section II should focus ONLY on compound mark hits
+    - One and Two Letter Analysis should ONLY be in Section I, not Section II
+    - Perform Crowded Field Analysis in Section II and adjust risk level accordingly
+    - Replace "Identical Marks" with "Marks containing [Component]" in Section II
+    - If no results are found for a particular subsection, state "None"
     """
     
     try:
@@ -784,11 +774,24 @@ ________________________________________
                 if "|" in line:  # Check if the line is part of a table
                     parts = line.split("|")
                     if len(parts) >= 6:  # Ensure the line has enough columns
-                        class_match = parts[4].strip().lower() == "true"
-                        goods_services_match = parts[5].strip().lower() == "true"
-                        if class_match or goods_services_match:
+                        # Check if this is a header row by looking for specific column header text
+                        if "Class Match" in line or "Trademark" in line:
                             filtered_opinion.append(line)
+                        else:
+                            # For data rows, check the Class Match and Goods & Services Match values
+                            class_match_idx = 4 if len(parts) == 7 else 5  # Adjust for extra column in some tables
+                            goods_services_match_idx = 5 if len(parts) == 7 else 6
+                            
+                            class_match = "true" in parts[class_match_idx].strip().lower()
+                            goods_services_match = "true" in parts[goods_services_match_idx].strip().lower()
+                            
+                            if class_match or goods_services_match:
+                                filtered_opinion.append(line)
+                    else:
+                        # Include table formatting lines and other table parts
+                        filtered_opinion.append(line)
                 else:
+                    # Include all non-table lines
                     filtered_opinion.append(line)
 
             # Join the filtered lines back into a single string
@@ -799,6 +802,425 @@ ________________________________________
             return "Error: No response received from the language model."
     except Exception as e:
         return f"Error during opinion formatting: {str(e)}"
+
+
+def section_one_analysis(mark, class_number, goods_services, relevant_conflicts):
+    """
+    Perform Section I: Comprehensive Trademark Hit Analysis
+    
+    Args:
+        mark: The proposed trademark
+        class_number: The class of the proposed trademark
+        goods_services: The goods and services of the proposed trademark
+        relevant_conflicts: List of relevant trademark conflicts
+        
+    Returns:
+        A structured analysis of identical marks, one/two letter differences, and similar marks
+    """
+    client = get_azure_client()
+    
+    system_prompt = """
+    You are a trademark expert attorney specializing in trademark opinion writing.
+    
+    Analyze the provided trademark conflicts focusing ONLY on Section I: Comprehensive Trademark Hit Analysis.
+    
+    Your analysis must include:
+    
+    (a) Identical Marks:
+    - List all identical marks or state "No identical marks found."
+    - Include registration status, class, and similarity description for each mark.
+    
+    (b) One Letter and Two Letter Analysis:
+    - List marks with one or two-letter differences from the proposed mark.
+    - Specify whether each mark has a one-letter or two-letter difference.
+    - Include only marks with meaningful differences, not more than two letters different.
+    - If none are found, state "None."
+    
+    (c) Phonetically, Semantically & Functionally Similar Analysis:
+    - List marks that are phonetically, semantically, or functionally similar.
+    - Specify whether each similarity is phonetic, semantic, or functional.
+    - If none are found, state "None."
+    
+    For ALL results, include:
+    - Class Match (True/False): Whether the mark's class exactly matches the proposed class
+    - Goods & Services Match (True/False): Whether the mark's goods/services are similar to the proposed goods/services
+    
+    YOUR RESPONSE MUST BE IN JSON FORMAT:
+    {
+      "identical_marks": [
+        {
+          "mark": "[TRADEMARK NAME]",
+          "status": "[LIVE/DEAD]",
+          "class": "[CLASS]",
+          "similarity_description": "[DESCRIPTION]",
+          "class_match": true|false,
+          "goods_services_match": true|false
+        }
+      ],
+      "one_two_letter_marks": [
+        {
+          "mark": "[TRADEMARK NAME]",
+          "status": "[LIVE/DEAD]",
+          "class": "[CLASS]",
+          "similarity_description": "[DESCRIPTION]",
+          "difference_type": "[One Letter|Two Letter]",
+          "class_match": true|false,
+          "goods_services_match": true|false
+        }
+      ],
+      "similar_marks": [
+        {
+          "mark": "[TRADEMARK NAME]",
+          "status": "[LIVE/DEAD]",
+          "class": "[CLASS]",
+          "similarity_description": "[DESCRIPTION]",
+          "similarity_type": "[Phonetic|Semantic|Functional]",
+          "class_match": true|false,
+          "goods_services_match": true|false
+        }
+      ]
+    }
+    """
+    
+    user_message = f"""
+    Proposed Trademark: {mark}
+    Class: {class_number}
+    Goods and Services: {goods_services}
+    
+    Trademark Conflicts:
+    {json.dumps(relevant_conflicts, indent=2)}
+    
+    Analyze ONLY Section I: Comprehensive Trademark Hit Analysis.
+    
+    IMPORTANT REMINDER:
+    - Include ALL hits in this section, not just compound mark hits
+    - For Class Match (True/False), compare the mark's class to the proposed class "{class_number}"
+    - For Goods & Services Match (True/False), compare the mark's goods/services to the proposed goods/services "{goods_services}"
+    """
+    
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message}
+            ],
+            temperature=0.0,
+        )
+        
+        if response.choices and len(response.choices) > 0:
+            content = response.choices[0].message.content
+            
+            # Extract JSON data
+            json_match = re.search(r'```json\s*(.*?)\s*```|({[\s\S]*})', content, re.DOTALL)
+            if json_match:
+                json_str = json_match.group(1) or json_match.group(2)
+                try:
+                    return json.loads(json_str)
+                except json.JSONDecodeError:
+                    return {
+                        "identical_marks": [],
+                        "one_two_letter_marks": [],
+                        "similar_marks": []
+                    }
+            else:
+                return {
+                    "identical_marks": [],
+                    "one_two_letter_marks": [],
+                    "similar_marks": []
+                }
+        else:
+            return {
+                "identical_marks": [],
+                "one_two_letter_marks": [],
+                "similar_marks": []
+            }
+    except Exception as e:
+        print(f"Error in section_one_analysis: {str(e)}")
+        return {
+            "identical_marks": [],
+            "one_two_letter_marks": [],
+            "similar_marks": []
+        }
+
+
+def section_two_analysis(mark, class_number, goods_services, relevant_conflicts):
+    """
+    Perform Section II: Component Analysis
+    
+    Args:
+        mark: The proposed trademark
+        class_number: The class of the proposed trademark
+        goods_services: The goods and services of the proposed trademark
+        relevant_conflicts: List of relevant trademark conflicts
+        
+    Returns:
+        A structured analysis of component marks and crowded field
+    """
+    client = get_azure_client()
+    
+    system_prompt = """
+    You are a trademark expert attorney specializing in trademark opinion writing.
+    
+    Analyze the provided trademark conflicts focusing ONLY on Section II: Component Analysis.
+    
+    Your analysis must include:
+    
+    (a) Component Formative Marks:
+    - Identify all components of the proposed mark (if it's a compound mark)
+    - For each component, analyze marks containing that component
+    - Do NOT perform One Letter and Two Letter Analysis in this section
+    
+    (b) Crowded Field Analysis:
+    - Determine if the trademark exists in a crowded field
+    - If a crowded field is identified, adjust the risk level accordingly
+    
+    For ALL results, include:
+    - Class Match (True/False): Whether the mark's class exactly matches the proposed class
+    - Goods & Services Match (True/False): Whether the mark's goods/services are similar to the proposed goods/services
+    
+    YOUR RESPONSE MUST BE IN JSON FORMAT:
+    {
+      "components": [
+        {
+          "component": "[COMPONENT NAME]",
+          "marks": [
+            {
+              "mark": "[TRADEMARK NAME]",
+              "status": "[LIVE/DEAD]",
+              "class": "[CLASS]",
+              "similarity_description": "[DESCRIPTION]",
+              "class_match": true|false,
+              "goods_services_match": true|false
+            }
+          ]
+        }
+      ],
+      "crowded_field": {
+        "is_crowded": true|false,
+        "explanation": "[EXPLANATION]",
+        "adjusted_risk": "[ADJUSTED RISK LEVEL]"
+      }
+    }
+    """
+    
+    user_message = f"""
+    Proposed Trademark: {mark}
+    Class: {class_number}
+    Goods and Services: {goods_services}
+    
+    Trademark Conflicts:
+    {json.dumps(relevant_conflicts, indent=2)}
+    
+    Analyze ONLY Section II: Component Analysis.
+    
+    IMPORTANT REMINDERS:
+    - Focus ONLY on compound mark hits in this section
+    - DO NOT perform One Letter and Two Letter Analysis in this section
+    - Conduct the Crowded Field Analysis and adjust the risk level accordingly
+    - For Class Match (True/False), compare the mark's class to the proposed class "{class_number}"
+    - For Goods & Services Match (True/False), compare the mark's goods/services to the proposed goods/services "{goods_services}"
+    - Instead of "Identical Marks," use "Marks containing [Component]" (e.g., "Marks containing MOCHA")
+    """
+    
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message}
+            ],
+            temperature=0.0,
+        )
+        
+        if response.choices and len(response.choices) > 0:
+            content = response.choices[0].message.content
+            
+            # Extract JSON data
+            json_match = re.search(r'```json\s*(.*?)\s*```|({[\s\S]*})', content, re.DOTALL)
+            if json_match:
+                json_str = json_match.group(1) or json_match.group(2)
+                try:
+                    return json.loads(json_str)
+                except json.JSONDecodeError:
+                    return {
+                        "components": [],
+                        "crowded_field": {
+                            "is_crowded": False,
+                            "explanation": "Unable to determine crowded field status.",
+                            "adjusted_risk": "N/A"
+                        }
+                    }
+            else:
+                return {
+                    "components": [],
+                    "crowded_field": {
+                        "is_crowded": False,
+                        "explanation": "Unable to determine crowded field status.",
+                        "adjusted_risk": "N/A"
+                    }
+                }
+        else:
+            return {
+                "components": [],
+                "crowded_field": {
+                    "is_crowded": False,
+                    "explanation": "Unable to determine crowded field status.",
+                    "adjusted_risk": "N/A"
+                }
+            }
+    except Exception as e:
+        print(f"Error in section_two_analysis: {str(e)}")
+        return {
+            "components": [],
+            "crowded_field": {
+                "is_crowded": False,
+                "explanation": "Unable to determine crowded field status.",
+                "adjusted_risk": "N/A"
+            }
+        }
+
+
+def section_three_analysis(mark, class_number, goods_services, section_one_results, section_two_results):
+    """
+    Perform Section III: Risk Assessment and Summary
+    
+    Args:
+        mark: The proposed trademark
+        class_number: The class of the proposed trademark
+        goods_services: The goods and services of the proposed trademark
+        section_one_results: Results from Section I
+        section_two_results: Results from Section II
+        
+    Returns:
+        A structured risk assessment and summary
+    """
+    client = get_azure_client()
+    
+    system_prompt = """
+    You are a trademark expert attorney specializing in trademark opinion writing.
+    
+    Analyze the provided trademark conflict results and create Section III: Risk Assessment and Summary.
+    
+    Your analysis must include:
+    
+    1. Likelihood of Confusion:
+    - Analyze the potential for confusion with existing marks
+    - Consider the similarity of the marks and the relatedness of goods/services
+    
+    2. Descriptiveness:
+    - Assess whether the mark is descriptive of the goods/services
+    - Determine the mark's strength on the distinctiveness spectrum
+    
+    3. Overall Risk Level:
+    - Provide a risk assessment on this scale: HIGH, MEDIUM-HIGH, MEDIUM, MEDIUM-LOW, LOW
+    - Justify the risk level based on the findings from Sections I and II
+    - If a crowded field was identified in Section II, adjust the risk level accordingly
+    
+    4. Recommendations:
+    - Provide specific, actionable recommendations based on the risk assessment
+    - Include strategies to mitigate identified risks
+    
+    YOUR RESPONSE MUST BE IN JSON FORMAT:
+    {
+      "likelihood_of_confusion": [
+        "[KEY POINT ABOUT LIKELIHOOD OF CONFUSION]",
+        "[ADDITIONAL POINT ABOUT LIKELIHOOD OF CONFUSION]"
+      ],
+      "descriptiveness": [
+        "[KEY POINT ABOUT DESCRIPTIVENESS]"
+      ],
+      "overall_risk": {
+        "level": "[HIGH|MEDIUM-HIGH|MEDIUM|MEDIUM-LOW|LOW]",
+        "explanation": "[EXPLANATION OF RISK LEVEL]"
+      },
+      "recommendations": [
+        "[PRIMARY RECOMMENDATION]",
+        "[SECONDARY RECOMMENDATION]",
+        "[ADDITIONAL RECOMMENDATION]"
+      ]
+    }
+    """
+    
+    user_message = f"""
+    Proposed Trademark: {mark}
+    Class: {class_number}
+    Goods and Services: {goods_services}
+    
+    Section I Results:
+    {json.dumps(section_one_results, indent=2)}
+    
+    Section II Results:
+    {json.dumps(section_two_results, indent=2)}
+    
+    Create Section III: Risk Assessment and Summary.
+    
+    IMPORTANT REMINDERS:
+    - Provide a detailed risk assessment incorporating the results of the crowded field analysis
+    - If the risk is Medium-High and a crowded field is identified, reduce it to Medium-Low
+    - Ensure recommendations are specific and actionable
+    """
+    
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message}
+            ],
+            temperature=0.0,
+        )
+        
+        if response.choices and len(response.choices) > 0:
+            content = response.choices[0].message.content
+            
+            # Extract JSON data
+            json_match = re.search(r'```json\s*(.*?)\s*```|({[\s\S]*})', content, re.DOTALL)
+            if json_match:
+                json_str = json_match.group(1) or json_match.group(2)
+                try:
+                    return json.loads(json_str)
+                except json.JSONDecodeError:
+                    return {
+                        "likelihood_of_confusion": ["Unable to determine likelihood of confusion."],
+                        "descriptiveness": ["Unable to determine descriptiveness."],
+                        "overall_risk": {
+                            "level": "MEDIUM",
+                            "explanation": "Unable to determine precise risk level."
+                        },
+                        "recommendations": ["Conduct a more detailed trademark search."]
+                    }
+            else:
+                return {
+                    "likelihood_of_confusion": ["Unable to determine likelihood of confusion."],
+                    "descriptiveness": ["Unable to determine descriptiveness."],
+                    "overall_risk": {
+                        "level": "MEDIUM",
+                        "explanation": "Unable to determine precise risk level."
+                    },
+                    "recommendations": ["Conduct a more detailed trademark search."]
+                }
+        else:
+            return {
+                "likelihood_of_confusion": ["Unable to determine likelihood of confusion."],
+                "descriptiveness": ["Unable to determine descriptiveness."],
+                "overall_risk": {
+                    "level": "MEDIUM",
+                    "explanation": "Unable to determine precise risk level."
+                },
+                "recommendations": ["Conduct a more detailed trademark search."]
+            }
+    except Exception as e:
+        print(f"Error in section_three_analysis: {str(e)}")
+        return {
+            "likelihood_of_confusion": ["Unable to determine likelihood of confusion."],
+            "descriptiveness": ["Unable to determine descriptiveness."],
+            "overall_risk": {
+                "level": "MEDIUM",
+                "explanation": "Unable to determine precise risk level."
+            },
+            "recommendations": ["Conduct a more detailed trademark search."]
+        }
 
 
 def generate_trademark_opinion(conflicts_array, proposed_name, proposed_class, proposed_goods_services):
@@ -817,54 +1239,71 @@ def generate_trademark_opinion(conflicts_array, proposed_name, proposed_class, p
     # Pre-filter trademarks to get the excluded count
     relevant_conflicts, excluded_count = validate_trademark_relevance(conflicts_array, proposed_goods_services)
     
-    # Step 1-6: Initial Mark Analysis
-    print("Performing Initial Mark Analysis...")
-    step1_6_results = initial_mark_analysis(conflicts_array, proposed_name, proposed_class, proposed_goods_services)
+    print("Performing Section I: Comprehensive Trademark Hit Analysis...")
+    section_one_results = section_one_analysis(proposed_name, proposed_class, proposed_goods_services, relevant_conflicts)
     
-    # Step 7: Overall Compound Mark Analysis
-    print("Performing Overall Compound Mark Analysis...")
-    step7_results = overall_compound_mark_analysis(conflicts_array, proposed_name, proposed_class, proposed_goods_services)
+    print("Performing Section II: Component Analysis...")
+    section_two_results = section_two_analysis(proposed_name, proposed_class, proposed_goods_services, relevant_conflicts)
     
-    # Step 8: Component (Formative) Mark Analysis
-    print("Performing Component (Formative) Mark Analysis...")
-    step8_results = component_formative_mark_analysis(conflicts_array, proposed_name, proposed_class, proposed_goods_services)
+    print("Performing Section III: Risk Assessment and Summary...")
+    section_three_results = section_three_analysis(proposed_name, proposed_class, proposed_goods_services, section_one_results, section_two_results)
     
-    # Steps 9-11: Final Validation, Risk Assessment, and Summary
-    print("Performing Final Validation and Assessment...")
-    final_results = final_validation_and_assessment(
-        conflicts_array, 
-        proposed_name, 
-        proposed_class, 
-        proposed_goods_services, 
-        step7_results, 
-        step8_results, 
-        excluded_count
-    )
+    # Create a comprehensive opinion structure
+    opinion_structure = {
+        "proposed_name": proposed_name,
+        "proposed_class": proposed_class,
+        "proposed_goods_services": proposed_goods_services,
+        "excluded_count": excluded_count,
+        "section_one": section_one_results,
+        "section_two": section_two_results,
+        "section_three": section_three_results
+    }
+    
+    # Format the opinion in a structured way
+    comprehensive_opinion = f"""
+    REFINED TRADEMARK OPINION: {proposed_name}
+    Class: {proposed_class}
+    Goods and Services: {proposed_goods_services}
+
+    Section I: Comprehensive Trademark Hit Analysis
+    
+    (a) Identical Marks:
+    {json.dumps(section_one_results.get('identical_marks', []), indent=2)}
+    
+    (b) One Letter and Two Letter Analysis:
+    {json.dumps(section_one_results.get('one_two_letter_marks', []), indent=2)}
+    
+    (c) Phonetically, Semantically & Functionally Similar Analysis:
+    {json.dumps(section_one_results.get('similar_marks', []), indent=2)}
+
+    Section II: Component Analysis
+    
+    (a) Color Formative Marks:
+    {json.dumps(section_two_results.get('components', []), indent=2)}
+    
+    (b) Crowded Field Analysis:
+    {json.dumps(section_two_results.get('crowded_field', {}), indent=2)}
+
+    Section III: Risk Assessment and Summary
+    
+    Likelihood of Confusion:
+    {json.dumps(section_three_results.get('likelihood_of_confusion', []), indent=2)}
+    
+    Descriptiveness:
+    {json.dumps(section_three_results.get('descriptiveness', []), indent=2)}
+    
+    Overall Risk Level:
+    {json.dumps(section_three_results.get('overall_risk', {}), indent=2)}
+    
+    Recommendations:
+    {json.dumps(section_three_results.get('recommendations', []), indent=2)}
+    
+    Note: {excluded_count} trademarks with unrelated goods/services were excluded from this analysis.
+    """
     
     # Clean and format the final opinion
     print("Cleaning and formatting the final opinion...")
-    opinion_data = {
-        "proposed_name": proposed_name,
-        "proposed_class": proposed_class,
-        "proposed_goods_services": proposed_goods_services
-    }
-    
-    # Combine all results into a comprehensive opinion
-    comprehensive_opinion = f"""
-    --- Step 1-6: Initial Mark Analysis ---
-    {step1_6_results.get('analysis', step1_6_results) if isinstance(step1_6_results, dict) else step1_6_results}
-    
-    --- Step 7: Overall Compound Mark Analysis ---
-    {step7_results.get('analysis', step7_results) if isinstance(step7_results, dict) else step7_results}
-    
-    --- Step 8: Component (Formative) Mark Analysis ---
-    {step8_results.get('analysis', step8_results) if isinstance(step8_results, dict) else step8_results}
-    
-    --- Steps 9-11: Final Validation, Risk Assessment, and Summary ---
-    {final_results.get('analysis', final_results) if isinstance(final_results, dict) else final_results}
-    """
-    
-    formatted_opinion = clean_and_format_opinion(comprehensive_opinion, opinion_data)
+    formatted_opinion = clean_and_format_opinion(comprehensive_opinion, opinion_structure)
     
     return formatted_opinion
 
