@@ -1,5 +1,3 @@
-# TAMIL CODE START'S HERE-------------------------------------------------------------------------------------------------------------------------
-
 import os
 from openai import AzureOpenAI
 import json
@@ -691,16 +689,18 @@ Component 2: [Second Component]
 
 Section III: Risk Assessment and Summary
 
-Likelihood of Confusion:
-- [KEY POINT ABOUT LIKELIHOOD OF CONFUSION]
-- [ADDITIONAL POINT ABOUT LIKELIHOOD OF CONFUSION]
-
 Descriptiveness:
 - [KEY POINT ABOUT DESCRIPTIVENESS]
 
-Overall Risk Level:
-- **[OVERALL RISK LEVEL: HIGH/MEDIUM-HIGH/MEDIUM/MEDIUM-LOW/LOW]**
-- [EXPLANATION OF RISK LEVEL]
+Risk Category for Registration:
+- **[REGISTRATION RISK LEVEL: HIGH/MEDIUM-HIGH/MEDIUM/MEDIUM-LOW/LOW]**
+- [EXPLANATION OF REGISTRATION RISK LEVEL]
+- [RECOMMENDATION ON WHETHER TO FILE]
+
+Risk Category for Use:
+- **[USE RISK LEVEL: HIGH/MEDIUM-HIGH/MEDIUM/MEDIUM-LOW/LOW]**
+- [EXPLANATION OF USE RISK LEVEL]
+- [MITIGATION STRATEGIES FOR MARKET USE]
 
 Recommendations:
 1. [PRIMARY RECOMMENDATION]
@@ -802,23 +802,71 @@ Recommendations:
             return "Error: No response received from the language model."
     except Exception as e:
         return f"Error during opinion formatting: {str(e)}"
+    
+def levenshtein_distance(a: str, b: str) -> int:  
+    """Compute the Levenshtein distance between strings a and b."""  
+    if a == b:  
+        return 0  
+    if len(a) == 0:  
+        return len(b)  
+    if len(b) == 0:  
+        return len(a)  
+    # Initialize DP table.  
+    dp = [[0] * (len(b) + 1) for _ in range(len(a) + 1)]  
+    for i in range(len(a) + 1):  
+        dp[i][0] = i  
+    for j in range(len(b) + 1):  
+        dp[0][j] = j  
+    for i in range(1, len(a) + 1):  
+        for j in range(1, len(b) + 1):  
+            if a[i - 1] == b[j - 1]:  
+                dp[i][j] = dp[i - 1][j - 1]  
+            else:  
+                dp[i][j] = 1 + min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1])  
+    return dp[len(a)][len(b)]  
+  
+def consistency_check(proposed_mark: str, classification: dict) -> dict:  
+    """Reclassify marks based on Levenshtein distance."""  
+    corrected = {  
+        "identical_marks": [],  
+        "one_letter_marks": [],  
+        "two_letter_marks": [],  
+        "similar_marks": classification.get("similar_marks", [])[:]  # Copy similar marks as is  
+    }  
+  
+    # Process marks from the 'identical_marks' bucket.  
+    for entry in classification.get("identical_marks", []):  
+        candidate = entry.get("mark", "")  
+        diff = levenshtein_distance(proposed_mark, candidate)  
+        if diff == 0:  
+            corrected["identical_marks"].append(entry)  
+        elif diff == 1:  
+            corrected["one_letter_marks"].append(entry)  
+        elif diff == 2:  
+            corrected["two_letter_marks"].append(entry)  
+        else:  
+            corrected["similar_marks"].append(entry)  
+  
+    # Process marks from the 'one_two_letter_marks' bucket.  
+    for entry in classification.get("one_two_letter_marks", []):  
+        candidate = entry.get("mark", "")  
+        diff = levenshtein_distance(proposed_mark, candidate)  
+        if diff == 0:  
+            corrected["identical_marks"].append(entry)  
+        elif diff == 1:  
+            corrected["one_letter_marks"].append(entry)  
+        elif diff == 2:  
+            corrected["two_letter_marks"].append(entry)  
+        else:  
+            corrected["similar_marks"].append(entry)  
+  
+    return corrected  
 
 
-def section_one_analysis(mark, class_number, goods_services, relevant_conflicts):
-    """
-    Perform Section I: Comprehensive Trademark Hit Analysis
-    
-    Args:
-        mark: The proposed trademark
-        class_number: The class of the proposed trademark
-        goods_services: The goods and services of the proposed trademark
-        relevant_conflicts: List of relevant trademark conflicts
-        
-    Returns:
-        A structured analysis of identical marks, one/two letter differences, and similar marks
-    """
-    client = get_azure_client()
-    
+def section_one_analysis(mark, class_number, goods_services, relevant_conflicts):  
+    """Perform Section I: Comprehensive Trademark Hit Analysis."""  
+    client = get_azure_client()  
+  
     system_prompt = """
     You are a trademark expert attorney specializing in trademark opinion writing.
     
@@ -880,10 +928,10 @@ def section_one_analysis(mark, class_number, goods_services, relevant_conflicts)
         }
       ]
     }
-    """
-    
-    user_message = f"""
-    Proposed Trademark: {mark}
+""" 
+  
+    user_message = f""" 
+Proposed Trademark: {mark}
     Class: {class_number}
     Goods and Services: {goods_services}
     
@@ -896,71 +944,69 @@ def section_one_analysis(mark, class_number, goods_services, relevant_conflicts)
     - Include ALL hits in this section, not just compound mark hits
     - For Class Match (True/False), compare the mark's class to the proposed class "{class_number}"
     - For Goods & Services Match (True/False), compare the mark's goods/services to the proposed goods/services "{goods_services}"
-    """
-    
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_message}
-            ],
-            temperature=0.0,
-        )
-        
-        if response.choices and len(response.choices) > 0:
-            content = response.choices[0].message.content
-            
-            # Extract JSON data
-            json_match = re.search(r'```json\s*(.*?)\s*```|({[\s\S]*})', content, re.DOTALL)
-            if json_match:
-                json_str = json_match.group(1) or json_match.group(2)
-                try:
-                    return json.loads(json_str)
-                except json.JSONDecodeError:
-                    return {
-                        "identical_marks": [],
-                        "one_two_letter_marks": [],
-                        "similar_marks": []
-                    }
-            else:
-                return {
-                    "identical_marks": [],
-                    "one_two_letter_marks": [],
-                    "similar_marks": []
-                }
-        else:
-            return {
-                "identical_marks": [],
-                "one_two_letter_marks": [],
-                "similar_marks": []
-            }
-    except Exception as e:
-        print(f"Error in section_one_analysis: {str(e)}")
-        return {
-            "identical_marks": [],
-            "one_two_letter_marks": [],
-            "similar_marks": []
-        }
+"""  
+  
+    try:  
+        response = client.chat.completions.create(  
+            model="gpt-4o",  
+            messages=[  
+                {"role": "system", "content": system_prompt},  
+                {"role": "user", "content": user_message}  
+            ],  
+            temperature=0.0,  
+        )  
+  
+        if response.choices and len(response.choices) > 0:  
+            content = response.choices[0].message.content  
+  
+            # Extract JSON data  
+            json_match = re.search(r'```json\s*(.*?)\s*```|({[\s\S]*})', content, re.DOTALL)  
+            if json_match:  
+                json_str = json_match.group(1) or json_match.group(2)  
+                try:  
+                    raw_results = json.loads(json_str)  
+                      
+                    # Apply consistency checking  
+                    corrected_results = consistency_check(mark, raw_results)  
+  
+                    return corrected_results  
+                except json.JSONDecodeError:  
+                    return {  
+                        "identical_marks": [],  
+                        "one_letter_marks": [],  
+                        "two_letter_marks": [],  
+                        "similar_marks": []  
+                    }  
+            else:  
+                return {  
+                    "identical_marks": [],  
+                    "one_letter_marks": [],  
+                    "two_letter_marks": [],  
+                    "similar_marks": []  
+                }  
+        else:  
+            return {  
+                "identical_marks": [],  
+                "one_letter_marks": [],  
+                "two_letter_marks": [],  
+                "similar_marks": []  
+            }  
+    except Exception as e:  
+        print(f"Error in section_one_analysis: {str(e)}")  
+        return {  
+            "identical_marks": [],  
+            "one_letter_marks": [],  
+            "two_letter_marks": [],  
+            "similar_marks": []  
+        }  
 
 
-def section_two_analysis(mark, class_number, goods_services, relevant_conflicts):
-    """
-    Perform Section II: Component Analysis
-    
-    Args:
-        mark: The proposed trademark
-        class_number: The class of the proposed trademark
-        goods_services: The goods and services of the proposed trademark
-        relevant_conflicts: List of relevant trademark conflicts
-        
-    Returns:
-        A structured analysis of component marks and crowded field
-    """
-    client = get_azure_client()
-    
+def section_two_analysis(mark, class_number, goods_services, relevant_conflicts):  
+    """Perform Section II: Component Analysis."""  
+    client = get_azure_client()  
+  
     system_prompt = """
-    You are a trademark expert attorney specializing in trademark opinion writing.
+ You are a trademark expert attorney specializing in trademark opinion writing.
     
     Analyze the provided trademark conflicts focusing ONLY on Section II: Component Analysis.
     
@@ -1002,8 +1048,8 @@ def section_two_analysis(mark, class_number, goods_services, relevant_conflicts)
         "adjusted_risk": "[ADJUSTED RISK LEVEL]"
       }
     }
-    """
-    
+"""  
+  
     user_message = f"""
     Proposed Trademark: {mark}
     Class: {class_number}
@@ -1021,64 +1067,69 @@ def section_two_analysis(mark, class_number, goods_services, relevant_conflicts)
     - For Class Match (True/False), compare the mark's class to the proposed class "{class_number}"
     - For Goods & Services Match (True/False), compare the mark's goods/services to the proposed goods/services "{goods_services}"
     - Instead of "Identical Marks," use "Marks containing [Component]" (e.g., "Marks containing MOCHA")
-    """
-    
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_message}
-            ],
-            temperature=0.0,
-        )
-        
-        if response.choices and len(response.choices) > 0:
-            content = response.choices[0].message.content
-            
-            # Extract JSON data
-            json_match = re.search(r'```json\s*(.*?)\s*```|({[\s\S]*})', content, re.DOTALL)
-            if json_match:
-                json_str = json_match.group(1) or json_match.group(2)
-                try:
-                    return json.loads(json_str)
-                except json.JSONDecodeError:
-                    return {
-                        "components": [],
-                        "crowded_field": {
-                            "is_crowded": False,
-                            "explanation": "Unable to determine crowded field status.",
-                            "adjusted_risk": "N/A"
-                        }
-                    }
-            else:
-                return {
-                    "components": [],
-                    "crowded_field": {
-                        "is_crowded": False,
-                        "explanation": "Unable to determine crowded field status.",
-                        "adjusted_risk": "N/A"
-                    }
-                }
-        else:
-            return {
-                "components": [],
-                "crowded_field": {
-                    "is_crowded": False,
-                    "explanation": "Unable to determine crowded field status.",
-                    "adjusted_risk": "N/A"
-                }
-            }
-    except Exception as e:
-        print(f"Error in section_two_analysis: {str(e)}")
-        return {
-            "components": [],
-            "crowded_field": {
-                "is_crowded": False,
-                "explanation": "Unable to determine crowded field status.",
-                "adjusted_risk": "N/A"
-            }
-        }
+"""  
+  
+    try:  
+        response = client.chat.completions.create(  
+            model="gpt-4o",  
+            messages=[  
+                {"role": "system", "content": system_prompt},  
+                {"role": "user", "content": user_message}  
+            ],  
+            temperature=0.0,  
+        )  
+  
+        if response.choices and len(response.choices) > 0:  
+            content = response.choices[0].message.content  
+  
+            # Extract JSON data  
+            json_match = re.search(r'```json\s*(.*?)\s*```|({[\s\S]*})', content, re.DOTALL)  
+            if json_match:  
+                json_str = json_match.group(1) or json_match.group(2)  
+                try:  
+                    raw_results = json.loads(json_str)  
+  
+                    # Apply consistency checking if needed  
+                    # corrected_results = consistency_check(mark, raw_results)  # Uncomment if applicable  
+  
+                    return raw_results  # Return corrected_results if consistency checking is applied  
+                except json.JSONDecodeError:  
+                    return {  
+                        "components": [],  
+                        "crowded_field": {  
+                            "is_crowded": False,  
+                            "explanation": "Unable to determine crowded field status.",  
+                            "adjusted_risk": "N/A"  
+                        }  
+                    }  
+            else:  
+                return {  
+                    "components": [],  
+                    "crowded_field": {  
+                        "is_crowded": False,  
+                        "explanation": "Unable to determine crowded field status.",  
+                        "adjusted_risk": "N/A"  
+                    }  
+                }  
+        else:  
+            return {  
+                "components": [],  
+                "crowded_field": {  
+                    "is_crowded": False,  
+                    "explanation": "Unable to determine crowded field status.",  
+                    "adjusted_risk": "N/A"  
+                }  
+            }  
+    except Exception as e:  
+        print(f"Error in section_two_analysis: {str(e)}")  
+        return {  
+            "components": [],  
+            "crowded_field": {  
+                "is_crowded": False,  
+                "explanation": "Unable to determine crowded field status.",  
+                "adjusted_risk": "N/A"  
+            }  
+        }  
 
 
 def section_three_analysis(mark, class_number, goods_services, section_one_results, section_two_results):
@@ -1223,6 +1274,29 @@ def section_three_analysis(mark, class_number, goods_services, section_one_resul
         }
 
 
+def analyze_aggressive_enforcement(conflicts_array):
+    """
+    Analyze aggressive enforcement and litigious behavior.
+    
+    Args:
+        conflicts_array: List of potential trademark conflicts
+    
+    Returns:
+        A dictionary containing known aggressive trademark owners and their enforcement patterns.
+    """
+    aggressive_owners = []
+    enforcement_patterns = []
+    
+    for conflict in conflicts_array:
+        if conflict.get("litigious_history", False):
+            aggressive_owners.append(conflict.get("owner", "Unknown Owner"))
+            enforcement_patterns.append(conflict.get("enforcement_details", "No details available"))
+    
+    return {
+        "aggressive_owners": aggressive_owners,
+        "enforcement_patterns": enforcement_patterns
+    }
+
 def generate_trademark_opinion(conflicts_array, proposed_name, proposed_class, proposed_goods_services):
     """
     Generate a comprehensive trademark opinion by running the entire analysis process.
@@ -1248,6 +1322,9 @@ def generate_trademark_opinion(conflicts_array, proposed_name, proposed_class, p
     print("Performing Section III: Risk Assessment and Summary...")
     section_three_results = section_three_analysis(proposed_name, proposed_class, proposed_goods_services, section_one_results, section_two_results)
     
+    print("Performing Section IV: Aggressive Enforcement Analysis...")
+    section_four_results = analyze_aggressive_enforcement(relevant_conflicts)
+    
     # Create a comprehensive opinion structure
     opinion_structure = {
         "proposed_name": proposed_name,
@@ -1256,7 +1333,8 @@ def generate_trademark_opinion(conflicts_array, proposed_name, proposed_class, p
         "excluded_count": excluded_count,
         "section_one": section_one_results,
         "section_two": section_two_results,
-        "section_three": section_three_results
+        "section_three": section_three_results,
+        "section_four": section_four_results
     }
     
     # Format the opinion in a structured way
@@ -1298,6 +1376,14 @@ def generate_trademark_opinion(conflicts_array, proposed_name, proposed_class, p
     Recommendations:
     {json.dumps(section_three_results.get('recommendations', []), indent=2)}
     
+    Section IV: Aggressive Enforcement and Litigious Behavior
+    
+    (a) Known Aggressive Owners:
+    {json.dumps(section_four_results.get('aggressive_owners', []), indent=2)}
+    
+    (b) Past Enforcement Patterns:
+    {json.dumps(section_four_results.get('enforcement_patterns', []), indent=2)}
+    
     Note: {excluded_count} trademarks with unrelated goods/services were excluded from this analysis.
     """
     
@@ -1306,6 +1392,7 @@ def generate_trademark_opinion(conflicts_array, proposed_name, proposed_class, p
     formatted_opinion = clean_and_format_opinion(comprehensive_opinion, opinion_structure)
     
     return formatted_opinion
+
 
 # Example usage function
 def run_trademark_analysis(proposed_name, proposed_class, proposed_goods_services, conflicts_data):
@@ -1335,5 +1422,3 @@ def run_trademark_analysis(proposed_name, proposed_class, proposed_goods_service
         
     except Exception as e:
         return f"Error running trademark analysis: {str(e)}"
-
-# TAMIL CODE END'S HERE ---------------------------------------------------------------------------------------------------------------------------
