@@ -56,17 +56,23 @@ Component 2: [Second Component]
 
 (b) Crowded Field Analysis:
 - **Total compound mark hits found**: [NUMBER]
-- **Overlapping goods/services**: [NUMBER] ([PERCENTAGE]%)
-- **Matching classes**: [NUMBER] ([PERCENTAGE]%)
-- **Top components**:
-  - [COMPONENT 1]: [COUNT] marks ([PERCENTAGE]%)
-  - [COMPONENT 2]: [COUNT] marks ([PERCENTAGE]%)
-- **Analysis**: [DETAILED EXPLANATION OF FINDINGS]
+- **Marks with different owners**: [NUMBER] ([PERCENTAGE]%)
+- **Crowded Field Status**: [YES/NO]
+- **Analysis**: 
+  [DETAILED EXPLANATION OF FINDINGS INCLUDING RISK IMPLICATIONS IF FIELD IS CROWDED]
 
 Section III: Risk Assessment and Summary
 
 Descriptiveness:
 - [KEY POINT ABOUT DESCRIPTIVENESS]
+
+Aggressive Enforcement and Litigious Behavior:
+- **Known Aggressive Owners**:
+  * [Owner 1]: [Enforcement patterns]
+  * [Owner 2]: [Enforcement patterns]
+- **Enforcement Landscape**:
+  * [KEY POINT ABOUT ENFORCEMENT LANDSCAPE]
+  * [ADDITIONAL POINT ABOUT ENFORCEMENT LANDSCAPE]
 
 Risk Category for Registration:
 - **[REGISTRATION RISK LEVEL: HIGH/MEDIUM-HIGH/MEDIUM/MEDIUM-LOW/LOW]**
@@ -92,9 +98,10 @@ Risk Category for Use:
     10. Follow the specified structure exactly:
         - Section I focuses on overall hits, including One/Two Letter Analysis
         - Section II focuses only on component hits
-        - In Section II, perform Crowded Field Analysis with exact counts and percentages
+        - In Section II, perform Crowded Field Analysis focusing on owner diversity
     11. State "None" when no results are found for a particular subsection
     12. Do NOT include recommendations in the summary
+    13. Include aggressive enforcement analysis in Section III with details on any owners known for litigious behavior
     """
     
     # Send the original opinion to be reformatted
@@ -119,20 +126,15 @@ Risk Category for Use:
     IMPORTANT REMINDERS FOR CROWDED FIELD ANALYSIS:
     - Include exact counts and percentages for:
       * Total compound mark hits found
-      * Number with overlapping goods/services
-      * Number with matching classes
-      * Top 2-3 components with their counts and percentages
-    - Format the crowded field analysis with clear statistics like:
-      "Total compound mark hits found: 25
-       - 15 (60%) have overlapping goods/services
-       - 10 (40%) have matching classes
-       - Most common component: 'TECH' (12 marks, 48%)
-       - Second most common component: 'SOL' (8 marks, 32%)"
+      * Number and percentage of marks with different owners
+      * Crowded Field Status (YES if >50% have different owners)
+    - Clearly explain risk implications if field is crowded
     - Section I should include ALL hits (overall hits), not just compound mark hits
     - Section II should focus ONLY on compound mark hits
     - One and Two Letter Analysis should ONLY be in Section I, not Section II
     - If no results are found for a particular subsection, state "None"
     - Do NOT include recommendations in the summary
+    - Include aggressive enforcement analysis in Section III with details on any owners known for litigious behavior
     """
     
     try:
@@ -382,15 +384,9 @@ def section_two_analysis(mark, class_number, goods_services, relevant_conflicts)
     
     (b) Crowded Field Analysis:
     - Calculate the total number of compound mark hits found
-    - Determine how many of those hits have overlapping goods/services
-    - Calculate the percentage of marks with overlapping goods/services
-    - Provide detailed statistics about component usage frequency
-    - Example format:
-      "Total compound mark hits found: 25
-       - 15 (60%) have overlapping goods/services
-       - 10 (40%) have matching classes
-       - Most common component: 'TECH' (appears in 12 marks, 48%)
-       - Second most common component: 'SOL' (appears in 8 marks, 32%)"
+    - Determine if more than `50%` of those marks each have different owners
+    - If yes, set is_crowded = true and note decreased risk in explanation
+    - Calculate the percentage of marks with different owners
     
     For ALL results, include:
     - Class Match (True/False): Whether the mark's class exactly matches the proposed class
@@ -417,18 +413,9 @@ def section_two_analysis(mark, class_number, goods_services, relevant_conflicts)
       ],
       "crowded_field": {
         "total_hits": [NUMBER],
-        "overlapping_hits": [NUMBER],
-        "overlapping_percentage": [PERCENTAGE],
-        "class_matches": [NUMBER],
-        "class_match_percentage": [PERCENTAGE],
-        "top_components": [
-          {
-            "component": "[COMPONENT NAME]",
-            "count": [NUMBER],
-            "percentage": [PERCENTAGE]
-          }
-        ],
-        "explanation": "[DETAILED EXPLANATION OF FINDINGS]"
+        "distinct_owner_percentage": [PERCENTAGE],
+        "is_crowded": true|false,
+        "explanation": "[DETAILED EXPLANATION OF FINDINGS, INCLUDING REDUCED RISK IF is_crowded=true]"
       }
     }
 """  
@@ -444,16 +431,11 @@ def section_two_analysis(mark, class_number, goods_services, relevant_conflicts)
     Analyze ONLY Section II: Component Analysis.
     
     IMPORTANT REMINDERS:
-    - Provide exact counts and percentages for all statistics
-    - Include the total number of compound mark hits found
-    - Calculate how many have overlapping goods/services and matching classes
-    - Identify the top 2-3 most common components with their counts and percentages
-    - Format the explanation with clear statistics like:
-      "Total compound mark hits found: 25
-       - 15 (60%) have overlapping goods/services
-       - 10 (40%) have matching classes
-       - Most common component: 'TECH' (12 marks, 48%)
-       - Second most common component: 'SOL' (8 marks, 32%)"
+    - Include exact counts and percentages for all statistics
+    - For Crowded Field Analysis:
+      1. Show the total number of compound mark hits
+      2. Calculate percentage of marks with different owners
+      3. If >50% have different owners, set is_crowded=true and mention decreased risk
     - For Class Match (True/False), compare the mark's class to the proposed class "{class_number}"
     - For Goods & Services Match (True/False), compare the mark's goods/services to the proposed goods/services "{goods_services}"
 """  
@@ -482,11 +464,8 @@ def section_two_analysis(mark, class_number, goods_services, relevant_conflicts)
                         "components": [],  
                         "crowded_field": {  
                             "total_hits": 0,
-                            "overlapping_hits": 0,
-                            "overlapping_percentage": 0,
-                            "class_matches": 0,
-                            "class_match_percentage": 0,
-                            "top_components": [],
+                            "distinct_owner_percentage": 0,
+                            "is_crowded": False,
                             "explanation": "Unable to determine crowded field status."  
                         }  
                     }  
@@ -495,11 +474,8 @@ def section_two_analysis(mark, class_number, goods_services, relevant_conflicts)
                     "components": [],  
                     "crowded_field": {  
                         "total_hits": 0,
-                        "overlapping_hits": 0,
-                        "overlapping_percentage": 0,
-                        "class_matches": 0,
-                        "class_match_percentage": 0,
-                        "top_components": [],
+                        "distinct_owner_percentage": 0,
+                        "is_crowded": False,
                         "explanation": "Unable to determine crowded field status."  
                     }  
                 }  
@@ -508,11 +484,8 @@ def section_two_analysis(mark, class_number, goods_services, relevant_conflicts)
                 "components": [],  
                 "crowded_field": {  
                     "total_hits": 0,
-                    "overlapping_hits": 0,
-                    "overlapping_percentage": 0,
-                    "class_matches": 0,
-                    "class_match_percentage": 0,
-                    "top_components": [],
+                    "distinct_owner_percentage": 0,
+                    "is_crowded": False,
                     "explanation": "Unable to determine crowded field status."  
                 }  
             }  
@@ -522,11 +495,8 @@ def section_two_analysis(mark, class_number, goods_services, relevant_conflicts)
             "components": [],  
             "crowded_field": {  
                 "total_hits": 0,
-                "overlapping_hits": 0,
-                "overlapping_percentage": 0,
-                "class_matches": 0,
-                "class_match_percentage": 0,
-                "top_components": [],
+                "distinct_owner_percentage": 0,
+                "is_crowded": False,
                 "explanation": "Error occurred during analysis"  
             }  
         }
@@ -563,7 +533,16 @@ def section_three_analysis(mark, class_number, goods_services, section_one_resul
     - Assess whether the mark is descriptive of the goods/services
     - Determine the mark's strength on the distinctiveness spectrum
     
-    3. Overall Risk Level:
+    3. Aggressive Enforcement and Litigious Behavior:
+    - Investigate whether owners of similar trademarks have a history of aggressive enforcement
+    - Identify specific owners known for litigious behavior or aggressive protection of their trademarks
+    - Document any patterns of enforcement behavior, including:
+      * Frequent opposition filings
+      * Litigation history
+      * Cease-and-desist actions
+    - Provide a list of such owners and their enforcement patterns
+    
+    4. Overall Risk Level:
     - Provide a risk assessment on this scale: HIGH, MEDIUM-HIGH, MEDIUM, MEDIUM-LOW, LOW
     - Justify the risk level based on the findings from Sections I and II
     - Focus the explanation on how the crowded field analysis contributed to risk reduction
@@ -578,6 +557,21 @@ def section_three_analysis(mark, class_number, goods_services, section_one_resul
       "descriptiveness": [
         "[KEY POINT ABOUT DESCRIPTIVENESS]"
       ],
+      "aggressive_enforcement": {
+        "owners": [
+          {
+            "name": "[OWNER NAME]",
+            "enforcement_patterns": [
+              "[PATTERN 1]",
+              "[PATTERN 2]"
+            ]
+          }
+        ],
+        "enforcement_landscape": [
+          "[KEY POINT ABOUT ENFORCEMENT LANDSCAPE]",
+          "[ADDITIONAL POINT ABOUT ENFORCEMENT LANDSCAPE]"
+        ]
+      },
       "overall_risk": {
         "level": "[HIGH|MEDIUM-HIGH|MEDIUM|MEDIUM-LOW|LOW]",
         "explanation": "[EXPLANATION OF RISK LEVEL WITH FOCUS ON CROWDED FIELD]",
@@ -604,6 +598,7 @@ def section_three_analysis(mark, class_number, goods_services, section_one_resul
     - Include the percentage of overlapping marks from crowded field analysis
     - Do NOT include recommendations
     - If the risk is Medium-High and a crowded field is identified, reduce it to Medium-Low
+    - For aggressive enforcement analysis, examine the owners of similar marks and identify any known for litigious behavior
     """
     
     try:
@@ -629,6 +624,10 @@ def section_three_analysis(mark, class_number, goods_services, section_one_resul
                     return {
                         "likelihood_of_confusion": ["Unable to determine likelihood of confusion."],
                         "descriptiveness": ["Unable to determine descriptiveness."],
+                        "aggressive_enforcement": {
+                            "owners": [],
+                            "enforcement_landscape": ["Unable to determine enforcement patterns."]
+                        },
                         "overall_risk": {
                             "level": "MEDIUM",
                             "explanation": "Unable to determine precise risk level.",
@@ -639,6 +638,10 @@ def section_three_analysis(mark, class_number, goods_services, section_one_resul
                 return {
                     "likelihood_of_confusion": ["Unable to determine likelihood of confusion."],
                     "descriptiveness": ["Unable to determine descriptiveness."],
+                    "aggressive_enforcement": {
+                        "owners": [],
+                        "enforcement_landscape": ["Unable to determine enforcement patterns."]
+                    },
                     "overall_risk": {
                         "level": "MEDIUM",
                         "explanation": "Unable to determine precise risk level.",
@@ -649,6 +652,10 @@ def section_three_analysis(mark, class_number, goods_services, section_one_resul
             return {
                 "likelihood_of_confusion": ["Unable to determine likelihood of confusion."],
                 "descriptiveness": ["Unable to determine descriptiveness."],
+                "aggressive_enforcement": {
+                    "owners": [],
+                    "enforcement_landscape": ["Unable to determine enforcement patterns."]
+                },
                 "overall_risk": {
                     "level": "MEDIUM",
                     "explanation": "Unable to determine precise risk level.",
@@ -660,6 +667,10 @@ def section_three_analysis(mark, class_number, goods_services, section_one_resul
         return {
             "likelihood_of_confusion": ["Unable to determine likelihood of confusion."],
             "descriptiveness": ["Unable to determine descriptiveness."],
+            "aggressive_enforcement": {
+                "owners": [],
+                "enforcement_landscape": ["Unable to determine enforcement patterns."]
+            },
             "overall_risk": {
                 "level": "MEDIUM",
                 "explanation": "Unable to determine precise risk level.",
