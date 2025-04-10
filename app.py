@@ -129,401 +129,6 @@ def filter_by_gpt_response(conflicts, gpt_json):
     
     return filtered_conflicts
 
-# def initial_mark_analysis(conflicts_array, proposed_name, proposed_class, proposed_goods_services):
-#     """
-#     Perform Steps 1-6: Initial Mark Analysis
-#     - First filter out irrelevant trademarks
-#     - Then send only relevant trademarks to GPT for analysis
-#     """
-  
-#     relevant_conflicts, excluded_count = validate_trademark_relevance(conflicts_array, proposed_goods_services)
-    
-   
-#     system_prompt = """
-#     You are a trademark expert attorney specializing in trademark opinion writing. Analyze the provided trademark data and provide a professional opinion on registration and use risks.
-    
-#     Follow these steps for your analysis:
-    
-#     Step 1: Verify and Deconstruct the Compound Mark
-#     - Confirm if the proposed trademark is a compound mark (combination of words/elements).
-#     - Deconstruct it into its formative components.
-#     - Example: "MOUNTAIN FRESH" → "MOUNTAIN" and "FRESH"
-    
-#     Step 2: Identify Identical Trademarks
-#     - List existing trademarks with identical names to the proposed trademark.
-#     - Only consider trademarks with identical or similar goods/services.
-    
-#     Step 3: Identify Phonetically/Semantically Equivalent Marks
-#     - List marks that sound similar or have similar meanings to the proposed trademark.
-#     - Only consider trademarks with identical or similar goods/services.
-    
-#     Step 4: Identify Marks with One-Letter Differences
-#     - List similar marks that differ by one letter from the proposed trademark.
-#     - Only consider trademarks with identical or similar goods/services.
-    
-#     Step 5: Identify Marks with Two-Letter Differences
-#     - List similar marks that differ by two letters from the proposed trademark.
-#     - Only consider trademarks with identical or similar goods/services.
-    
-#     Step 6: Perform Crowded Field Analysis
-#     - If Steps 4 and 5 yield more than 20 marks, check their ownership.
-#     - Calculate the percentage of marks with different owners.
-#     - If more than 50% have different owners, consider it a crowded field.
-#     - If it's a crowded field, the final risk assessment should be reduced by one level.
-    
-#     IMPORTANT: 
-#     - We have already filtered out trademarks with unrelated goods/services. 
-#     - All trademarks in your input ARE relevant to the proposed trademark's goods/services.
-#     - Focus on matches that are closely related to the entire trademark name, not just individual components.
-    
-#     YOUR RESPONSE MUST END WITH A JSON SUMMARY in this exact format:
-#     {
-#       "results": [
-#         {
-#           "mark": "[TRADEMARK NAME]",
-#           "owner": "[OWNER NAME]",
-#           "goods_services": "[GOODS/SERVICES DESCRIPTION]",
-#           "overlap": true,
-#           "risk_level": "[HIGH|MEDIUM|LOW]",
-#           "class_match": true|false,
-#           "goods_services_match": true|false
-#         },
-#         ...additional marks...
-#       ],
-#       "summary": {
-#         "identical_count": [NUMBER],
-#         "phonetic_count": [NUMBER],
-#         "one_letter_count": [NUMBER],
-#         "two_letter_count": [NUMBER],
-#         "crowded_field": {
-#           "is_crowded": true|false,
-#           "percentage": [PERCENTAGE],
-#           "explanation": "[EXPLANATION]"
-#         }
-#       }
-#     }
-#     """
-    
-#     client = get_azure_client()
-    
-   
-#     user_message = f"""
-#     Trademark Details:
-#     {json.dumps(relevant_conflicts, indent=2)}
-    
-#     Analyze the Proposed Trademark "{proposed_name}" focusing on Steps 1-6: Initial mark analysis.
-#     Mark Searched = {proposed_name}
-#     Classes Searched = {proposed_class}
-#     Goods and Services = {proposed_goods_services}
-    
-#     Note: {excluded_count} trademarks with unrelated goods/services have already been filtered out.
-    
-#     For each mark, determine:
-#     - "Class Match" (True/False): Whether the mark's class exactly matches the proposed class "{proposed_class}".
-#     - "Goods & Services Match" (True/False): Whether the mark's goods/services are similar to the proposed goods/services "{proposed_goods_services}".
-    
-#     REMEMBER: 
-#     - End your response with the JSON summary as specified in the instructions.
-#     - Include owner names and goods/services details for each mark.
-#     - Focus on matches to the entire trademark name, not just components.
-#     """
-    
-#     try:
-#         response = client.chat.completions.create(
-#             model="gpt-4o",
-#             messages=[
-#                 {"role": "system", "content": system_prompt},
-#                 {"role": "user", "content": user_message}
-#             ],
-#             temperature=0.0,
-#         )
-        
-    
-#         if response.choices and len(response.choices) > 0:
-#             content = response.choices[0].message.content
-            
-           
-#             json_match = re.search(r'```json\s*({[\s\S]*?})\s*```|({[\s\S]*?"summary"\s*:[\s\S]*?})', content)
-#             if json_match:
-#                 json_str = json_match.group(1) or json_match.group(2)
-#                 try:
-#                     json_data = json.loads(json_str)
-                   
-#                     return {
-#                         "analysis": content,
-#                         "json_data": json_data
-#                     }
-#                 except json.JSONDecodeError:
-#                     pass
-            
-#             return content
-#         else:
-#             return "Error: No response received from the language model."
-#     except Exception as e:
-#         return f"Error during initial mark analysis: {str(e)}"
-
-# def component_formative_mark_analysis(conflicts_array, proposed_name, proposed_class, proposed_goods_services):
-#     """
-#     Perform Step 8: Component (Formative) Mark Analysis
-#     - Pre-filter trademarks before sending to GPT
-#     """
-    
-#     relevant_conflicts, excluded_count = validate_trademark_relevance(conflicts_array, proposed_goods_services)
-    
-  
-#     system_prompt = """
-# You are a trademark expert attorney specializing in trademark opinion writing.
-
-# Perform Step 8: Component (Formative) Mark Analysis using the following structure:
-
-# Step 8.a: Identify and Deconstruct the Compound Mark
-# - Confirm if the proposed trademark is a compound mark (combination of words/elements).
-# - Deconstruct it into its formative components.
-# - Example: For "POWERHOLD," identify the components "POWER" and "HOLD".
-
-# FOR EACH FORMATIVE COMPONENT, perform the following detailed analysis:
-
-# Step 8.b: Identical Marks Analysis for Each Component
-# - Only list trademarks that are identical to each individual formative component AND cover identical or similar goods/services.
-# - Example: For "POWERHOLD," analyze "POWER" trademarks and "HOLD" trademarks separately.
-# - If no identical marks pass validation for a component, state: "No identical trademarks covering similar goods/services were identified for [COMPONENT]."
-
-# Step 8.c: Phonetic and Semantic Equivalents for Each Component
-# - Only list trademarks that are phonetically or semantically similar to each formative component AND cover identical or similar goods/services.
-# - Example: For "POWER," phonetically similar marks might include "POWR," "POWUR," or "PAWER." 
-# - Evaluate whether these similar marks overlap in goods/services and assess the likelihood of confusion.
-
-# Step 8.d: Marks with Letter Differences for Each Component
-# Step 8.d.1: One-Letter Differences
-# - Only list trademarks that differ by one letter from each formative component AND cover identical or similar goods/services.
-# - Example: For "POWER," consider marks like "POWIR" or "POSER."
-# - Assess the impact of these differences on consumer perception and the likelihood of confusion.
-
-# Step 8.d.2: Two-Letter Differences
-# - List ONLY trademarks that differ by two letters from each formative component AND cover relevant goods/services.
-# - Example: For "POWER," consider "POWTR" or "PIWER."
-# - Evaluate whether these differences create confusion in meaning or pronunciation.
-
-# Step 8.e: Component Distinctiveness Analysis
-# - For each component, classify its distinctiveness as Generic, Descriptive, Suggestive, Arbitrary, or Fanciful.
-# - Consider the component in relation to the specific goods/services.
-# - Example: For "POWER" in electrical equipment, it would be descriptive; for food services, it would be arbitrary.
-
-# Step 8.f: Functional/Conceptual Relationship Analysis
-# - For compound marks, analyze how the meaning of one component might relate functionally to another component in EXISTING marks.
-# - Example: For "MIRAGRIP," identify marks where a component has a functional relationship similar to how "MIRA" relates to "GRIP" (e.g., "VISIONHOLD," "WONDERCLUTCH").
-# - Only include marks with relevant goods/services.
-# - Document the functional relationship between components and why they create similar commercial impressions.
-
-# IMPORTANT: 
-# - We have already filtered out ALL trademarks with unrelated goods/services. 
-# - Your analysis should ONLY include trademarks with goods/services relevant to the proposed trademark.
-# - Include owner names and goods/services details for each mark.
-
-# YOUR RESPONSE MUST END WITH A JSON SUMMARY in this exact format:
-# {
-#   "components": [
-#     {
-#       "component": "[COMPONENT NAME]",
-#       "results": [
-#         {
-#           "mark": "[TRADEMARK NAME]",
-#           "owner": "[OWNER NAME]",
-#           "goods_services": "[GOODS/SERVICES DESCRIPTION]",
-#           "overlap": true
-#         },
-#         ...additional marks for this component...
-#       ],
-#       "distinctiveness": "[GENERIC|DESCRIPTIVE|SUGGESTIVE|ARBITRARY|FANCIFUL]"
-#     },
-#     ...additional components...
-#   ],
-#   "crowded_field": {
-#     "is_crowded": true|false,
-#     "percentage": [PERCENTAGE],
-#     "explanation": "[EXPLANATION]"
-#   }
-# }
-# """
-    
-#     client = get_azure_client()
-    
- 
-#     user_message = f"""
-#     Trademark Details:
-#     {json.dumps(relevant_conflicts, indent=2)}
-    
-#     Analyze the Proposed Trademark "{proposed_name}" focusing on Step 8: Component (Formative) Mark Analysis.
-#     Mark Searched = {proposed_name}
-#     Classes Searched = {proposed_class}
-#     Goods and Services = {proposed_goods_services}
-    
-#     Note: {excluded_count} trademarks with unrelated goods/services have already been filtered out.
-    
-#     REMEMBER: 
-#     - End your response with the JSON summary as specified in the instructions.
-#     - Include owner names and goods/services details for each mark.
-#     - Focus on analyzing each component separately.
-#     """
-    
-#     try:
-#         response = client.chat.completions.create(
-#             model="gpt-4o",
-#             messages=[
-#                 {"role": "system", "content": system_prompt},
-#                 {"role": "user", "content": user_message}
-#             ],
-#             temperature=0.0,
-#         )
-        
- 
-#         if response.choices and len(response.choices) > 0:
-#             content = response.choices[0].message.content
-            
-       
-#             json_match = re.search(r'```json\s*({[\s\S]*?})\s*```|({[\s\S]*?"components"\s*:[\s\S]*?})', content)
-#             if json_match:
-#                 json_str = json_match.group(1) or json_match.group(2)
-#                 try:
-#                     json_data = json.loads(json_str)
-                  
-#                     return {
-#                         "analysis": content,
-#                         "json_data": json_data
-#                     }
-#                 except json.JSONDecodeError:
-#                     pass
-            
-#             return content
-#         else:
-#             return "Error: No response received from the language model."
-#     except Exception as e:
-#         return f"Error during component formative mark analysis: {str(e)}"
-
-# def final_validation_and_assessment(conflicts_array, proposed_name, proposed_class, proposed_goods_services, step7_results, step8_results, excluded_count):
-#     """
-#     Perform Steps 9-11: Final Validation, Overall Risk Assessment, and Summary of Findings
-#     - Pass the excluded_count to inform GPT about pre-filtering
-#     """
-
-#     system_prompt = """
-#     You are a trademark expert attorney specializing in trademark opinion writing.
-    
-#     Perform Steps 9-11: Final Validation, Overall Risk Assessment, and Summary of Findings using the following structure:
-    
-#     Step 9: Final Validation Check
-#     - All trademarks with unrelated goods/services have already been filtered out. No further filtering is needed.
-    
-#     Step 10: Overall Risk Assessment
-#     - Integrate all findings from previous steps (Steps 1-8) to provide a single, comprehensive risk assessment.
-#     - Assess the trademark's overall viability and risk on this scale:
-#       * Low: Very few/no conflicts, highly distinctive mark
-#       * Medium-Low: Some minor conflicts, moderately distinctive mark
-#       * Medium: Several potential conflicts, average distinctiveness
-#       * Medium-High: Numerous conflicts, limited distinctiveness
-#       * High: Significant conflicts, minimal distinctiveness
-#     - Consider these factors:
-#       * Number and similarity of identical marks
-#       * Number and similarity of phonetically/semantically equivalent marks
-#       * Presence of marks with one or two-letter differences
-#       * Crowded field status (if applicable, reduce risk by one level)
-#       * Evidence of aggressive enforcement by owners of similar marks
-#       * Distinctiveness of the compound mark and its components
-#     - Focus the discussion on how the crowded field analysis contributed to risk reduction.
-    
-#     Step 11: Summary of Findings
-#     - Summarize the overall trademark analysis, including:
-#       * Likelihood of Conflicts
-#       * Crowded Field Status (with numerical percentages)
-#       * Distinctiveness Assessment
-#     - Do NOT include recommendations in the summary.
-    
-#     YOUR RESPONSE MUST END WITH A JSON SUMMARY in this exact format:
-#     {
-#       "final_assessment": {
-#         "overall_risk_level": "[HIGH|MEDIUM-HIGH|MEDIUM|MEDIUM-LOW|LOW]",
-#         "crowded_field": {
-#           "is_crowded": true|false,
-#           "percentage": [PERCENTAGE],
-#           "explanation": "[EXPLANATION]"
-#         },
-#         "identical_mark_count": [NUMBER],
-#         "similar_mark_count": [NUMBER],
-#         "key_conflicts": ["[TRADEMARK1]", "[TRADEMARK2]", ...]
-#       }
-#     }
-#     """
-    
-#     client = get_azure_client()
-    
-
-#     step7_json = step7_results.get("json_data", {}) if isinstance(step7_results, dict) else {}
-#     step8_json = step8_results.get("json_data", {}) if isinstance(step8_results, dict) else {}
-    
-
-#     step7_analysis = step7_results.get("analysis", step7_results) if isinstance(step7_results, dict) else step7_results
-#     step8_analysis = step8_results.get("analysis", step8_results) if isinstance(step8_results, dict) else step8_results
-    
-  
-#     user_message = f"""
-#     Trademark Details:
-#     - Proposed Trademark: {proposed_name}
-#     - Classes Searched: {proposed_class}
-#     - Goods and Services: {proposed_goods_services}
-    
-#     Previous Analysis Results:
-    
-#     --- Step 7 Results ---
-#     {step7_analysis}
-    
-#     --- Step 8 Results ---
-#     {step8_analysis}
-    
-#     Please complete the trademark analysis by performing Steps 9-11: Final Validation Check, Overall Risk Assessment, and Summary of Findings.
-    
-#     Note: {excluded_count} trademarks with unrelated goods/services were excluded from this analysis through pre-filtering.
-    
-#     REMEMBER: 
-#     - End your response with the JSON summary as specified in the instructions.
-#     - Focus the risk discussion on crowded field analysis.
-#     - Include numerical percentages for crowded field analysis.
-#     - Do NOT include recommendations.
-#     """
-    
-#     try:
-#         response = client.chat.completions.create(
-#             model="gpt-4o",
-#             messages=[
-#                 {"role": "system", "content": system_prompt},
-#                 {"role": "user", "content": user_message}
-#             ],
-#             temperature=0.0,
-#         )
-        
-      
-#         if response.choices and len(response.choices) > 0:
-#             content = response.choices[0].message.content
-            
-         
-#             json_match = re.search(r'```json\s*({[\s\S]*?})\s*```|({[\s\S]*?"final_assessment"\s*:[\s\S]*?})', content)
-#             if json_match:
-#                 json_str = json_match.group(1) or json_match.group(2)
-#                 try:
-#                     json_data = json.loads(json_str)
-                   
-#                     return {
-#                         "analysis": content,
-#                         "json_data": json_data
-#                     }
-#                 except json.JSONDecodeError:
-#                     pass
-            
-#             return content
-#         else:
-#             return "Error: No response received from the language model."
-#     except Exception as e:
-#         return f"Error during final validation and assessment: {str(e)}"
-
 def clean_and_format_opinion(comprehensive_opinion, json_data=None):
     """
     Process the comprehensive trademark opinion to:
@@ -1313,7 +918,7 @@ IMPORTANT REMINDERS:
         }
 
 
-def section_three_analysis(mark, class_number, goods_services, section_one_results, section_two_results):
+def section_three_analysis(mark, class_number, goods_services, section_one_results, section_two_results=None):
     """
     Perform Section III: Risk Assessment and Summary
     
@@ -1322,12 +927,28 @@ def section_three_analysis(mark, class_number, goods_services, section_one_resul
         class_number: The class of the proposed trademark
         goods_services: The goods and services of the proposed trademark
         section_one_results: Results from Section I
-        section_two_results: Results from Section II
+        section_two_results: Results from Section II (may be None if Section II was skipped)
         
     Returns:
         A structured risk assessment and summary
     """
     client = get_azure_client()
+    
+    # Check if we should skip Section Two analysis and directly set risk to medium-high
+    skip_section_two = False
+    skip_reason = ""
+    
+    # Check for phonetic or semantic marks with class match and goods/services match
+    for mark_entry in section_one_results.get("similar_marks", []):
+        if mark_entry.get("similarity_type") in ["Phonetic", "Semantic"]:
+            if mark_entry.get("class_match") and mark_entry.get("goods_services_match"):
+                skip_section_two = True
+                skip_reason = "Found a Phonetic or Semantic similar mark with both class match and goods/services match"
+                break
+            elif mark_entry.get("class_match"):
+                skip_section_two = True
+                skip_reason = "Found a Phonetic or Semantic similar mark with coordinated class match"
+                break
     
     system_prompt = """
 You are a trademark expert attorney specializing in trademark opinion writing.
@@ -1349,9 +970,13 @@ Please analyze the results from Sections I and II to create Section III: Risk As
 
 4. Overall Risk Rating:
    • Provide risk ratings for Registration and Use separately:
-     - For Registration: MEDIUM-HIGH when identical marks are present, even in a crowded field
-     - For Use: MEDIUM when identical marks are present, even in a crowded field
-   • For other cases, use: HIGH, MEDIUM-HIGH, MEDIUM, MEDIUM-LOW, or LOW as appropriate
+     - For Registration: MEDIUM-HIGH when identical marks are present
+     - For Use: MEDIUM-HIGH when identical marks are present
+     - When no identical marks exist but similar marks are found:
+       * Start with MEDIUM-HIGH risk level
+       * If crowded field exists (>50% different owners), reduce risk by one level:
+         - MEDIUM-HIGH → MEDIUM-LOW
+         - MEDIUM → LOW (but never go below MEDIUM-LOW)
    • Justify the rating using findings from:
      - Class and goods/services overlap (including coordinated class logic)
      - Crowded field metrics (e.g., distinct owner percentage)
@@ -1359,11 +984,12 @@ Please analyze the results from Sections I and II to create Section III: Risk As
      - History of enforcement activity
 
 IMPORTANT:
-- When determining likelihood of confusion, incorporate coordinated class analysis. For example, if a conflict is in a related class (like class 35 for retail services vs. class 30 for food products), include this in your rationale.
-- Crowded field data from Section II must be factored into risk mitigation. If >50% of conflicting marks are owned by unrelated entities, that may reduce enforceability and legal risk.
-- For identical marks, ALWAYS rate risk as MEDIUM-HIGH for Registration and MEDIUM for Use, regardless of crowded field percentage.
+- When determining likelihood of confusion, incorporate coordinated class analysis.
+- Crowded field data from Section II must be factored into risk mitigation. If >50% of conflicting marks are owned by unrelated entities, that reduces enforceability and legal risk by one level.
+- For identical marks, ALWAYS rate risk as MEDIUM-HIGH for Registration and MEDIUM-HIGH for Use, regardless of crowded field percentage.
+- When no identical marks exist but similar marks are found in a crowded field (>50% different owners), reduce risk by one level.
 - Do NOT increase risk to HIGH even when identical marks are present.
-- Do NOT reduce risk level below MEDIUM-HIGH for Registration and MEDIUM for Use when identical marks are present, regardless of crowded field analysis.
+- Do NOT reduce risk level below MEDIUM-LOW.
 
 Your output MUST be returned in the following JSON format:
 
@@ -1393,14 +1019,37 @@ Your output MUST be returned in the following JSON format:
   "overall_risk": {
     "level_registration": "MEDIUM-HIGH",
     "explanation_registration": "[EXPLANATION OF RISK LEVEL WITH FOCUS ON IDENTICAL MARKS]",
-    "level_use": "MEDIUM",
+    "level_use": "MEDIUM-HIGH",
     "explanation_use": "[EXPLANATION OF RISK LEVEL]",
-    "crowded_field_percentage": [PERCENTAGE]
+    "crowded_field_percentage": [PERCENTAGE],
+    "crowded_field_impact": "[EXPLANATION OF HOW CROWDED FIELD AFFECTED RISK LEVEL]"
   }
 }
 """
     
-    user_message = f"""
+    # Prepare the user message based on whether Section II was skipped
+    if skip_section_two:
+        user_message = f"""
+Proposed Trademark: {mark}
+Class: {class_number}
+Goods and Services: {goods_services}
+
+Section I Results:
+{json.dumps(section_one_results, indent=2)}
+
+SPECIAL INSTRUCTION: Section II analysis was skipped because: {skip_reason}. According to our risk assessment rules, when a Phonetic or Semantic mark is identified with a class match (and either goods/services match or coordinated class match), the risk level is automatically set to MEDIUM-HIGH for both Registration and Use.
+
+Create Section III: Risk Assessment and Summary.
+
+IMPORTANT REMINDERS:
+- SET the risk level to MEDIUM-HIGH for both Registration and Use
+- Include an explanation that this risk level is due to the presence of a Phonetic or Semantic similar mark with class match
+- Focus the risk discussion on the similar marks identified in Section I
+- For aggressive enforcement analysis, examine the owners of similar marks
+- Specifically analyze coordinated class conflicts
+"""
+    else:
+        user_message = f"""
 Proposed Trademark: {mark}
 Class: {class_number}
 Goods and Services: {goods_services}
@@ -1416,13 +1065,17 @@ Create Section III: Risk Assessment and Summary.
 IMPORTANT REMINDERS:
 - Focus the risk discussion on crowded field analysis and identical marks
 - Include the percentage of overlapping marks from crowded field analysis
-- Do NOT include recommendations
 - For identical marks specifically, ALWAYS set risk level to:
   * MEDIUM-HIGH for Registration
-  * MEDIUM for Use
+  * MEDIUM-HIGH for Use
+- When no identical marks exist but similar marks are found:
+  * Start with MEDIUM-HIGH risk level
+  * If crowded field exists (>50% different owners), reduce risk by one level:
+    - MEDIUM-HIGH → MEDIUM-LOW
+    - MEDIUM → LOW (but never go below MEDIUM-LOW)
 - Never increase risk to HIGH even with identical marks present
-- For aggressive enforcement analysis, examine the owners of similar marks and identify any known for litigious behavior
-- Specifically analyze coordinated class conflicts – marks in related class groupings may present significant risk even if they're not in the exact same class
+- For aggressive enforcement analysis, examine the owners of similar marks
+- Specifically analyze coordinated class conflicts
 """
     
     try:
@@ -1453,9 +1106,12 @@ IMPORTANT REMINDERS:
                             "enforcement_landscape": ["Unable to determine enforcement patterns."]
                         },
                         "overall_risk": {
-                            "level": "MEDIUM",
-                            "explanation": "Unable to determine precise risk level.",
-                            "crowded_field_percentage": 0
+                            "level_registration": "MEDIUM-HIGH" if skip_section_two else "MEDIUM-LOW",
+                            "explanation_registration": f"Risk level set to MEDIUM-HIGH due to {skip_reason}" if skip_section_two else "Unable to determine precise risk level.",
+                            "level_use": "MEDIUM-HIGH" if skip_section_two else "MEDIUM-LOW",
+                            "explanation_use": f"Risk level set to MEDIUM-HIGH due to {skip_reason}" if skip_section_two else "Unable to determine precise risk level.",
+                            "crowded_field_percentage": 0,
+                            "crowded_field_impact": "Section II analysis was skipped due to high-risk marks in Section I" if skip_section_two else "Unable to determine crowded field impact"
                         }
                     }
             else:
@@ -1467,9 +1123,12 @@ IMPORTANT REMINDERS:
                         "enforcement_landscape": ["Unable to determine enforcement patterns."]
                     },
                     "overall_risk": {
-                        "level": "MEDIUM",
-                        "explanation": "Unable to determine precise risk level.",
-                        "crowded_field_percentage": 0
+                        "level_registration": "MEDIUM-HIGH" if skip_section_two else "MEDIUM-LOW",
+                        "explanation_registration": f"Risk level set to MEDIUM-HIGH due to {skip_reason}" if skip_section_two else "Unable to determine precise risk level.",
+                        "level_use": "MEDIUM-HIGH" if skip_section_two else "MEDIUM-LOW",
+                        "explanation_use": f"Risk level set to MEDIUM-HIGH due to {skip_reason}" if skip_section_two else "Unable to determine precise risk level.",
+                        "crowded_field_percentage": 0,
+                        "crowded_field_impact": "Section II analysis was skipped due to high-risk marks in Section I" if skip_section_two else "Unable to determine crowded field impact"
                     }
                 }
         else:
@@ -1481,9 +1140,12 @@ IMPORTANT REMINDERS:
                     "enforcement_landscape": ["Unable to determine enforcement patterns."]
                 },
                 "overall_risk": {
-                    "level": "MEDIUM",
-                    "explanation": "Unable to determine precise risk level.",
-                    "crowded_field_percentage": 0
+                    "level_registration": "MEDIUM-HIGH" if skip_section_two else "MEDIUM-LOW",
+                    "explanation_registration": f"Risk level set to MEDIUM-HIGH due to {skip_reason}" if skip_section_two else "Unable to determine precise risk level.",
+                    "level_use": "MEDIUM-HIGH" if skip_section_two else "MEDIUM-LOW",
+                    "explanation_use": f"Risk level set to MEDIUM-HIGH due to {skip_reason}" if skip_section_two else "Unable to determine precise risk level.",
+                    "crowded_field_percentage": 0,
+                    "crowded_field_impact": "Section II analysis was skipped due to high-risk marks in Section I" if skip_section_two else "Unable to determine crowded field impact"
                 }
             }
     except Exception as e:
@@ -1496,9 +1158,12 @@ IMPORTANT REMINDERS:
                 "enforcement_landscape": ["Unable to determine enforcement patterns."]
             },
             "overall_risk": {
-                "level": "MEDIUM",
-                "explanation": "Unable to determine precise risk level.",
-                "crowded_field_percentage": 0
+                "level_registration": "MEDIUM-HIGH" if skip_section_two else "MEDIUM-LOW",
+                "explanation_registration": f"Risk level set to MEDIUM-HIGH due to {skip_reason}" if skip_section_two else "Unable to determine precise risk level.",
+                "level_use": "MEDIUM-HIGH" if skip_section_two else "MEDIUM-LOW",
+                "explanation_use": f"Risk level set to MEDIUM-HIGH due to {skip_reason}" if skip_section_two else "Unable to determine precise risk level.",
+                "crowded_field_percentage": 0,
+                "crowded_field_impact": "Section II analysis was skipped due to high-risk marks in Section I" if skip_section_two else "Unable to determine crowded field impact"
             }
         }
 
@@ -1936,17 +1601,14 @@ Return results in EXACTLY this format:
 Section IV: Comprehensive Cited Term Analysis
 (a) Identical Cited Terms:
 | Cited Term | Owner | Goods & Services | Goods & Services Match |
-|------------|--------|------------------|------------------------|
 | [Term 1] | [Owner] | [Goods/Services] | [True/False] |
 
 (b) One Letter and Two Letter Analysis:
 | Cited Term | Owner | Goods & Services | Difference Type | Goods & Services Match |
-|------------|--------|------------------|----------------|------------------------|
 | [Term 1] | [Owner] | [Goods/Services] | [One/Two Letter] | [True/False] |
 
 (c) Phonetically, Semantically & Functionally Similar Analysis:
 | Cited Term | Owner | Goods & Services | Similarity Type | Goods & Services Match |
-|------------|--------|------------------|-----------------|------------------------|
 | [Term 1] | [Owner] | [Goods/Services] | [Phonetic/Semantic/Functional] | [True/False] |
 
 Evaluation Guidelines:
@@ -1991,7 +1653,7 @@ Evaluation Guidelines:
 def section_five_analysis(extracted_data: List[str], proposed_name: str) -> str:
     """
     Perform Section V: Component Analysis and Crowded Field Assessment
-    (Skips crowded field analysis if identical hits exist in cited term analysis)
+    (Skips entire section if identical hits exist in cited term analysis)
     """
     azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
     api_key = os.getenv("AZURE_OPENAI_API_KEY")
@@ -2006,9 +1668,9 @@ Extracted Data:
 {extracted_text}
 
 IF IDENTICAL TERMS EXIST:
-- Skip crowded field analysis entirely
-- Return this exact text in the Crowded Field Analysis section:
-  "Crowded field analysis omitted due to identical cited terms"
+- Skip entire Section V analysis
+- Return this exact text:
+  "Section V omitted due to identical cited terms"
 
 IF NO IDENTICAL TERMS EXIST:
 Perform Section V analysis (Component Analysis) with these subsections:
@@ -2022,26 +1684,20 @@ Section V: Component Analysis
 
 Component 1: [First Component]
 | Cited Term | Owner | Goods & Services | Goods & Services Match |
-|-----------|--------|------------------|------------------------|
 | [Term 1] | [Owner] | [Goods/Services] | [True/False] |
 
 (b) Crowded Field Analysis:
-[ONLY INCLUDE IF NO IDENTICAL TERMS FOUND]
 - **Total component hits found**: [NUMBER]
 - **Terms with different owners**: [NUMBER] ([PERCENTAGE]%)
 - **Crowded Field Status**: [YES/NO]
 - **Analysis**: 
   [DETAILED EXPLANATION OF FINDINGS]
 
-OR IF IDENTICAL TERMS EXIST:
-(b) Crowded Field Analysis:
-Crowded field analysis omitted due to identical cited terms
-
 IMPORTANT:
 1. First check for identical terms before any analysis
-2. If identical terms exist, skip crowded field entirely
-3. Only perform crowded field analysis if NO identical terms exist
-4. Never show both identical terms and crowded field analysis
+2. If identical terms exist, skip entire Section V
+3. Only perform component and crowded field analysis if NO identical terms exist
+4. Never show any analysis if identical terms are found
 """
 
     data = {
@@ -2049,7 +1705,7 @@ IMPORTANT:
         "messages": [
             {
                 "role": "system",
-                "content": "You are a trademark attorney who FIRST checks for identical terms before deciding whether to perform crowded field analysis.",
+                "content": "You are a trademark attorney who FIRST checks for identical terms before deciding whether to perform any Section V analysis.",
             },
             {
                 "role": "user",
