@@ -1,5 +1,3 @@
-# TAMIL CODE START'S HERE-------------------------------------------------------------------------------------------------------------------------
-
 import os
 from openai import AzureOpenAI
 import json
@@ -322,198 +320,321 @@ Risk Category for Use:
             return "Error: No response received from the language model."
     except Exception as e:
         return f"Error during opinion formatting: {str(e)}"
+        
+  
+def consistency_check(mark, results):
+    """
+    Consistency checking function to ensure accuracy of analysis results.
     
-def levenshtein_distance(a: str, b: str) -> int:  
-    """Compute the Levenshtein distance between strings a and b."""  
-    if a == b:  
-        return 0  
-    if len(a) == 0:  
-        return len(b)  
-    if len(b) == 0:  
-        return len(a)  
-    # Initialize DP table.  
-    dp = [[0] * (len(b) + 1) for _ in range(len(a) + 1)]  
-    for i in range(len(a) + 1):  
-        dp[i][0] = i  
-    for j in range(len(b) + 1):  
-        dp[0][j] = j  
-    for i in range(1, len(a) + 1):  
-        for j in range(1, len(b) + 1):  
-            if a[i - 1] == b[j - 1]:  
-                dp[i][j] = dp[i - 1][j - 1]  
-            else:  
-                dp[i][j] = 1 + min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1])  
-    return dp[len(a)][len(b)]  
-  
-def consistency_check(proposed_mark: str, classification: dict) -> dict:  
-    """Reclassify marks based on Levenshtein distance."""  
-    corrected = {  
-        "identical_marks": [],  
-        "one_letter_marks": [],  
-        "two_letter_marks": [],  
-        "similar_marks": classification.get("similar_marks", [])[:]  # Copy similar marks as is  
-    }  
-  
-    # Process marks from the 'identical_marks' bucket.  
-    for entry in classification.get("identical_marks", []):  
-        candidate = entry.get("mark", "")  
-        diff = levenshtein_distance(proposed_mark, candidate)  
-        if diff == 0:  
-            corrected["identical_marks"].append(entry)  
-        elif diff == 1:  
-            corrected["one_letter_marks"].append(entry)  
-        elif diff == 2:  
-            corrected["two_letter_marks"].append(entry)  
-        else:  
-            corrected["similar_marks"].append(entry)  
-  
-    # Process marks from the 'one_two_letter_marks' bucket.  
-    for entry in classification.get("one_two_letter_marks", []):  
-        candidate = entry.get("mark", "")  
-        diff = levenshtein_distance(proposed_mark, candidate)  
-        if diff == 0:  
-            corrected["identical_marks"].append(entry)  
-        elif diff == 1:  
-            corrected["one_letter_marks"].append(entry)  
-        elif diff == 2:  
-            corrected["two_letter_marks"].append(entry)  
-        else:  
-            corrected["similar_marks"].append(entry)  
-  
-    return corrected  
+    Args:
+        mark: The proposed trademark name
+        results: Raw analysis results
+        
+    Returns:
+        Corrected and validated results
+    """
+    corrected_results = results.copy()
+    
+    # Ensure all entries have required fields
+    required_fields = ['mark', 'owner', 'goods_services', 'status', 'class', 'class_match', 'goods_services_match']
+    
+    # Check identical marks
+    for i, item in enumerate(corrected_results.get('identical_marks', [])):
+        # Validate that mark name is indeed identical
+        if item.get('mark', '').lower() != mark.lower():
+            # Remove from identical marks if not actually identical
+            corrected_results['identical_marks'][i] = None
+        
+        # Ensure all required fields exist
+        for field in required_fields:
+            if field not in item:
+                if field == 'class_match' or field == 'goods_services_match':
+                    corrected_results['identical_marks'][i][field] = False
+                else:
+                    corrected_results['identical_marks'][i][field] = "Unknown"
+    
+    # Remove None entries
+    corrected_results['identical_marks'] = [item for item in corrected_results.get('identical_marks', []) if item is not None]
+    
+    # Similar checks for one_letter_marks
+    for i, item in enumerate(corrected_results.get('one_letter_marks', [])):
+        # Validate actual one letter difference
+        if not is_one_letter_difference(item.get('mark', ''), mark):
+            corrected_results['one_letter_marks'][i] = None
+            
+        # Ensure all required fields exist
+        for field in required_fields:
+            if field not in item and field != 'difference_type':
+                if field == 'class_match' or field == 'goods_services_match':
+                    corrected_results['one_letter_marks'][i][field] = False
+                else:
+                    corrected_results['one_letter_marks'][i][field] = "Unknown"
+    
+    # Remove None entries
+    corrected_results['one_letter_marks'] = [item for item in corrected_results.get('one_letter_marks', []) if item is not None]
+    
+    # Similar checks for two_letter_marks
+    for i, item in enumerate(corrected_results.get('two_letter_marks', [])):
+        # Validate actual two letter difference
+        if not is_two_letter_difference(item.get('mark', ''), mark):
+            corrected_results['two_letter_marks'][i] = None
+            
+        # Ensure all required fields exist
+        for field in required_fields:
+            if field not in item and field != 'difference_type':
+                if field == 'class_match' or field == 'goods_services_match':
+                    corrected_results['two_letter_marks'][i][field] = False
+                else:
+                    corrected_results['two_letter_marks'][i][field] = "Unknown"
+    
+    # Remove None entries
+    corrected_results['two_letter_marks'] = [item for item in corrected_results.get('two_letter_marks', []) if item is not None]
+    
+    # Check similar_marks
+    for i, item in enumerate(corrected_results.get('similar_marks', [])):
+        # Ensure all required fields exist
+        for field in required_fields:
+            if field not in item and field != 'similarity_type':
+                if field == 'class_match' or field == 'goods_services_match':
+                    corrected_results['similar_marks'][i][field] = False
+                else:
+                    corrected_results['similar_marks'][i][field] = "Unknown"
+    
+    return corrected_results
+
+
+def is_one_letter_difference(mark1, mark2):
+    """
+    Check if two marks have a one letter difference.
+    
+    Args:
+        mark1: First mark
+        mark2: Second mark
+        
+    Returns:
+        Boolean indicating if there's a one letter difference
+    """
+    # Handle case-insensitivity
+    mark1 = mark1.lower()
+    mark2 = mark2.lower()
+    
+    # If length difference is greater than 1, definitely not a one letter difference
+    if abs(len(mark1) - len(mark2)) > 1:
+        return False
+    
+    # Count differences
+    differences = 0
+    
+    # Same length - check for substitution
+    if len(mark1) == len(mark2):
+        for c1, c2 in zip(mark1, mark2):
+            if c1 != c2:
+                differences += 1
+                if differences > 1:
+                    return False
+    # Different length - check for insertion/deletion
+    else:
+        # Make sure mark1 is the shorter one for simplicity
+        if len(mark1) > len(mark2):
+            mark1, mark2 = mark2, mark1
+            
+        i, j = 0, 0
+        while i < len(mark1) and j < len(mark2):
+            if mark1[i] != mark2[j]:
+                # Skip this character in the longer string
+                j += 1
+                differences += 1
+                if differences > 1:
+                    return False
+            else:
+                i += 1
+                j += 1
+                
+    return differences == 1
+
+
+def is_two_letter_difference(mark1, mark2):
+    """
+    Check if two marks have a two letter difference.
+    
+    Args:
+        mark1: First mark
+        mark2: Second mark
+        
+    Returns:
+        Boolean indicating if there's a two letter difference
+    """
+    # Handle case-insensitivity
+    mark1 = mark1.lower()
+    mark2 = mark2.lower()
+    
+    # If length difference is greater than 2, definitely not a two letter difference
+    if abs(len(mark1) - len(mark2)) > 2:
+        return False
+    
+    # Use Levenshtein distance for accurate measurement
+    return levenshtein_distance(mark1, mark2) == 2
+
+
+def levenshtein_distance(s1, s2):
+    """
+    Calculate the Levenshtein distance between two strings.
+    This measures the minimum number of single-character edits needed to change one string into another.
+    
+    Args:
+        s1: First string
+        s2: Second string
+        
+    Returns:
+        The edit distance between the strings
+    """
+    if len(s1) < len(s2):
+        return levenshtein_distance(s2, s1)
+
+    if len(s2) == 0:
+        return len(s1)
+
+    previous_row = range(len(s2) + 1)
+    for i, c1 in enumerate(s1):
+        current_row = [i + 1]
+        for j, c2 in enumerate(s2):
+            insertions = previous_row[j + 1] + 1
+            deletions = current_row[j] + 1
+            substitutions = previous_row[j] + (c1 != c2)
+            current_row.append(min(insertions, deletions, substitutions))
+        previous_row = current_row
+    
+    return previous_row[-1]
 
 
 def section_one_analysis(mark, class_number, goods_services, relevant_conflicts):  
     """
     Perform Section I: Comprehensive Trademark Hit Analysis using chain of thought prompting.
     This approach explicitly walks through the analysis process to ensure consistent results.
+    Includes phonetic and semantic similarity checks.
     """  
     client = get_azure_client()  
-  
+    
+    # Helper function for semantic equivalence
+    def is_semantically_equivalent(name1, name2, threshold=0.50):
+        embeddings1 = semantic_model.encode(name1, convert_to_tensor=True)
+        embeddings2 = semantic_model.encode(name2, convert_to_tensor=True)
+        similarity_score = util.cos_sim(embeddings1, embeddings2).item()
+        return similarity_score >= threshold
+
+    # Helper function for phonetic equivalence
+    def is_phonetically_equivalent(name1, name2, threshold=50):
+        return fuzz.ratio(name1.lower(), name2.lower()) >= threshold
+
     system_prompt = """
-You are a highly experienced trademark attorney specializing in trademark conflict analysis and opinion writing. Your task is to assess potential trademark conflicts using detailed, step-by-step chain of thought reasoning.
-
-Follow this structure precisely:
-
-1. STEP 1 - COORDINATED CLASS ANALYSIS:
-   a) Carefully analyze the proposed goods/services: "{goods_services}"
-   b) Determine which additional trademark classes are considered related or coordinated with the primary class {class_number}
-   c) Provide detailed justification for each coordinated class selected
-   d) Produce a finalized list of all trademark classes that should be included in the conflict assessment
-
-2. STEP 2 - IDENTICAL MARK ANALYSIS:
-   a) Identify all trademarks that are an EXACT match to the proposed mark "{mark}" (case-insensitive)
-   b) For each identical mark, assess:
-      - Is the mark registered in the SAME class as the proposed mark?
-      - Is it registered in any of the COORDINATED classes from Step 1?
-      - Are the goods/services similar, related, or overlapping with the proposed goods/services?
-   c) Clearly specify `class_match` and `goods_services_match` values for each mark
-
-3. STEP 3 - ONE LETTER DIFFERENCE ANALYSIS:
-   a) Identify trademarks that differ from the proposed mark by only ONE letter
-   b) Acceptable variations include one-letter substitution, addition, or deletion
-   c) For each mark, specify the `class_match` and `goods_services_match` values, and document the type of variation
-
-4. STEP 4 - TWO LETTER DIFFERENCE ANALYSIS:
-   a) Identify trademarks that differ from the proposed mark by exactly TWO letters
-   b) These may be substitutions, additions, deletions, or a combination thereof
-   c) For each mark, specify the `class_match` and `goods_services_match` values, and document the type of variation
-
-5. STEP 5 - SIMILAR MARK ANALYSIS:
-   a) First identify trademarks that share substantial portions with the proposed mark or contain key distinctive elements of the proposed mark
-   b) Then analyze these marks for similarity to the proposed mark "{mark}" in:
-      - Phonetic Similarity:
-        1) Analyze how the trademarks sound when spoken aloud
-        2) Consider similar pronunciation patterns, rhythm, cadence, syllable stress, and overall sound impression
-        3) Pay particular attention to marks that share significant sound patterns with the proposed mark
-        4) Example: "FRESH BURST" would be phonetically similar to "COOL MINT FRESH STRIPS" as they share the distinctive "FRESH" element and similar explosive ending concepts ("BURST"/"STRIPS")
-      - Semantic Similarity:
-        1) Examine the meanings, concepts, and commercial impressions conveyed by each trademark
-        2) Consider marks that convey the same or similar meaning, even if using different words
-        3) Identify marks that create similar mental associations or refer to similar attributes/qualities
-        4) Example: A mark like "FRESH BURST" conveys a similar concept to "COOL MINT FRESH STRIPS" as both suggest refreshing/cooling product experiences
-      - Commercial Impression:
-        1) Assess the overall commercial impression each mark makes on consumers
-        2) Consider how consumers might remember or perceive the marks
-        3) Evaluate whether the marks create similar overall commercial impressions despite differences in specific wording
-        4) Example: Both "FRESH BURST" and "COOL MINT FRESH STRIPS" create the impression of breath-freshening products with an energetic sensation
-   c) Important: When evaluating similarity, consider the mark as a whole but also pay attention to dominant elements that consumers are likely to remember
-   d) Clearly explain your similarity reasoning for each identified mark
-   e) For each mark, specify the `class_match` and `goods_services_match` values
-
-6. STEP 6 - CROWDED FIELD ANALYSIS:
-   a) Calculate the total number of potentially conflicting marks identified
+    You are a trademark expert attorney specializing in trademark opinion writing. I need you to analyze potential trademark conflicts using chain of thought reasoning.
+    
+    First, I want you to think step by step:
+    
+    1. STEP 1 - COORDINATED CLASS ANALYSIS:
+       a) Carefully examine the proposed goods/services: "{goods_services}"
+       b) Based on these goods/services, identify which other trademark classes would be considered related or coordinated with the primary class {class_number}
+       c) Document your reasoning for each coordinated class you identify
+       d) Create a final list of all classes that should be considered for conflict analysis
+    
+    2. STEP 2 - IDENTICAL MARK ANALYSIS:
+       a) Identify any marks that EXACTLY match the proposed trademark "{mark}" (case-insensitive)
+       b) For each identical mark, verify:
+          - Is it in the SAME class as the proposed mark?
+          - Is it in a COORDINATED class you identified in Step 1?
+          - Are the goods/services similar or related to the proposed goods/services?
+       c) For each mark, explicitly determine class_match and goods_services_match values
+    
+    3. STEP 3 - ONE LETTER DIFFERENCE ANALYSIS:
+       a) Identify marks that have EXACTLY ONE letter different from the proposed mark
+       b) This can be through substitution (one letter different), addition (one extra letter), or deletion (one letter missing)
+       c) For each mark, explicitly determine class_match and goods_services_match values
+    
+    4. STEP 4 - TWO LETTER DIFFERENCE ANALYSIS:
+       a) Identify marks that have EXACTLY TWO letters different from the proposed mark
+       b) This can be through substitution, addition, deletion, or a combination
+       c) For each mark, explicitly determine class_match and goods_services_match values
+    
+    5. STEP 5 - SIMILAR MARK ANALYSIS:
+       a) Identify marks that are similar in sound (phonetically), meaning (semantically), or function
+       b) For phonetic similarity, consider marks that sound similar when spoken aloud (use the phonetic algorithm)
+       c) For semantic similarity, consider marks that have similar meanings or connotations
+       d) Explicitly state the similarity type (Phonetic/Semantic/Functional) for each similar mark
+       e) For each mark, explicitly determine class_match and goods_services_match values
+    
+    6. STEP 6 - CROWDED FIELD ANALYSIS:
+       a) Calculate the total number of potentially conflicting marks identified
        b) Calculate what percentage of these marks have different owners
        c) Determine if the field is "crowded" (>50% different owners)
        d) Explain the implications for trademark protection
-
-FOR EACH POTENTIAL CONFLICTING MARK, INCLUDE:
-- The exact mark name
-- The owner's name
-- A full description of goods/services
-- Registration status (LIVE/DEAD)
-- Class number
-- Whether there is a class match (true/false)
-- Whether there is a goods/services match (true/false)
-
-FORMAT YOUR RESPONSE STRICTLY IN JSON:
-
-{
-  "identified_coordinated_classes": [LIST OF RELATED CLASS NUMBERS],
-  "coordinated_classes_explanation": "[DETAILED EXPLANATION OF COORDINATED CLASSES]",
-  "identical_marks": [
+    
+    For each conflict you identify, include comprehensive details:
+    - The exact mark name
+    - The owner name
+    - The full goods/services description (not just class numbers)
+    - Registration status
+    - Class number
+    - Whether there's a class match (true/false)
+    - Whether there's a goods/services match (true/false)
+    - For similar marks, include similarity type (Phonetic/Semantic/Functional)
+    
+    YOUR RESPONSE MUST BE IN JSON FORMAT:
     {
-      "mark": "[TRADEMARK NAME]",
-      "owner": "[OWNER NAME]",
-      "goods_services": "[FULL GOODS/SERVICES DESCRIPTION]",
-      "status": "[LIVE/DEAD]",
-      "class": "[CLASS NUMBER]",
-      "class_match": true|false,
-      "goods_services_match": true|false
+      "identified_coordinated_classes": [LIST OF RELATED CLASS NUMBERS],
+      "coordinated_classes_explanation": "[EXPLANATION OF WHY THESE CLASSES ARE RELATED TO THE PROPOSED TRADEMARK]",
+      "identical_marks": [
+        {
+          "mark": "[TRADEMARK NAME]",
+          "owner": "[OWNER NAME]",
+          "goods_services": "[GOODS/SERVICES]",
+          "status": "[LIVE/DEAD]",
+          "class": "[CLASS]",
+          "class_match": true|false,
+          "goods_services_match": true|false
+        }
+      ],
+      "one_letter_marks": [
+        {
+          "mark": "[TRADEMARK NAME]",
+          "owner": "[OWNER NAME]",
+          "goods_services": "[GOODS/SERVICES]",
+          "status": "[LIVE/DEAD]",
+          "class": "[CLASS]",
+          "difference_type": "One Letter",
+          "class_match": true|false,
+          "goods_services_match": true|false
+        }
+      ],
+      "two_letter_marks": [
+        {
+          "mark": "[TRADEMARK NAME]",
+          "owner": "[OWNER NAME]",
+          "goods_services": "[GOODS/SERVICES]",
+          "status": "[LIVE/DEAD]",
+          "class": "[CLASS]",
+          "difference_type": "Two Letter",
+          "class_match": true|false,
+          "goods_services_match": true|false
+        }
+      ],
+      "similar_marks": [
+        {
+          "mark": "[TRADEMARK NAME]",
+          "owner": "[OWNER NAME]",
+          "goods_services": "[GOODS/SERVICES]",
+          "status": "[LIVE/DEAD]",
+          "class": "[CLASS]",
+          "similarity_type": "[Phonetic|Semantic|Functional]",
+          "class_match": true|false,
+          "goods_services_match": true|false
+        }
+      ],
+      "crowded_field": {
+        "is_crowded": true|false,
+        "percentage": [PERCENTAGE],
+        "explanation": "[EXPLANATION]"
+      }
     }
-  ],
-  "one_letter_marks": [
-    {
-      "mark": "[TRADEMARK NAME]",
-      "owner": "[OWNER NAME]",
-      "goods_services": "[FULL GOODS/SERVICES DESCRIPTION]",
-      "status": "[LIVE/DEAD]",
-      "class": "[CLASS NUMBER]",
-      "difference_type": "One Letter",
-      "class_match": true|false,
-      "goods_services_match": true|false
-    }
-  ],
-  "two_letter_marks": [
-    {
-      "mark": "[TRADEMARK NAME]",
-      "owner": "[OWNER NAME]",
-      "goods_services": "[FULL GOODS/SERVICES DESCRIPTION]",
-      "status": "[LIVE/DEAD]",
-      "class": "[CLASS NUMBER]",
-      "difference_type": "Two Letter",
-      "class_match": true|false,
-      "goods_services_match": true|false
-    }
-  ],
-  "similar_marks": [
-    {
-      "mark": "[TRADEMARK NAME]",
-      "owner": "[OWNER NAME]",
-      "goods_services": "[FULL GOODS/SERVICES DESCRIPTION]",
-      "status": "[LIVE/DEAD]",
-      "class": "[CLASS NUMBER]",
-      "similarity_type": "[Phonetic|Semantic|Functional]",
-      "class_match": true|false,
-      "goods_services_match": true|false
-    }
-  ],
-  "crowded_field": {
-    "is_crowded": true|false,
-    "percentage": [PERCENTAGE],
-    "explanation": "[CLEAR EXPLANATION OF CROWDING AND ITS IMPLICATIONS]"
-  }
-}
 """ 
   
     user_message = f""" 
@@ -524,53 +645,30 @@ FORMAT YOUR RESPONSE STRICTLY IN JSON:
     Trademark Conflicts:
     {json.dumps(relevant_conflicts, indent=2)}
     
-    Analyze ONLY Section I: Comprehensive Trademark Hit Analysis. Proceed step by step with clear reasoning and structured output:
+    Analyze ONLY Section I: Comprehensive Trademark Hit Analysis. Walk through each step methodically:
     
-    STEP 1: Coordinated Class Analysis  
-    - Carefully examine the proposed goods/services.  
-    - Identify ALL classes that are coordinated or closely related to the primary class "{class_number}".  
-    - Justify each coordinated class you identify with reasoning based on commercial relationship or consumer perception.  
-    - Provide a complete list of all classes relevant to the conflict analysis.
+    STEP 1: First, carefully analyze the proposed goods/services and identify ALL coordinated classes.
+    STEP 2: Then identify EXACT matches to the trademark "{mark}"
+    STEP 3: Next, identify marks with ONE letter difference (substitution, addition, or deletion)
+    STEP 4: Then identify marks with TWO letter differences
+    STEP 5: Finally, identify phonetically, semantically, or functionally similar marks
+        - For phonetic similarity, carefully compare how the marks sound when spoken
+        - For semantic similarity, analyze the meaning and connotations
+        - Explicitly state the similarity type (Phonetic/Semantic/Functional) for each
+    STEP 6: Perform crowded field analysis with precise calculations
     
-    STEP 2: Identical Mark Analysis  
-    - Identify all trademarks that EXACTLY match the proposed mark "{mark}" (case-insensitive).  
-    - For each mark, check:  
-      * Is it in the SAME class?  
-      * Is it in a COORDINATED class (from Step 1)?  
-      * Are the goods/services related or overlapping?  
-    - Clearly state `class_match` and `goods_services_match` values for each mark.
-    
-    STEP 3: One Letter Difference Analysis  
-    - Identify marks with only ONE letter difference (substitution, addition, or deletion).  
-    - For each, determine whether there's a `class_match` and `goods_services_match`.
-    
-    STEP 4: Two Letter Difference Analysis  
-    - Identify marks that differ by exactly TWO letters (substitution, addition, deletion, or a mix).  
-    - For each, indicate `class_match` and `goods_services_match`.
-    
-    STEP 5: Similar Mark Analysis  
-    - Identify marks similar to "{mark}" in any of the following ways:  
-      * Phonetic (sounds similar)  
-      * Semantic (has similar meaning)  
-      * Functional (conveys similar commercial impression)  
-    - Justify the type of similarity for each mark and assess `class_match` and `goods_services_match`.
-    
-    STEP 6: Crowded Field Analysis  
-    - Count the total number of potentially conflicting marks identified.  
-    - Calculate what percentage have DIFFERENT owners.  
-    - Determine if the field is “crowded” (over 50% owned by different parties).  
-    - Explain the trademark protection implications in a crowded field context.
-    
-    IMPORTANT REMINDERS:  
-    - Focus on the full trademark, not just partial or component words.  
-    - Always include full owner names and full goods/services descriptions.  
-    - For `class_match`:  
-      * Mark as True if in class "{class_number}"  
-      * OR if in a coordinated class identified in Step 1  
-    - For `goods_services_match`:  
-      * Compare the mark’s goods/services directly to the proposed goods/services.  
-    - Ensure letter difference analysis is exact (i.e., exactly one or two letters, not more).  
-    - In Similar Mark Analysis, explicitly label the similarity type: Phonetic, Semantic, or Functional.
+    IMPORTANT REMINDERS:
+    - Focus on matches to the ENTIRE trademark name, not just components
+    - Include owner names and goods/services details for each mark
+    - For Class Match (True/False):
+      * First, explicitly identify all coordinated classes related to the proposed goods/services
+      * Mark True if the mark's class exactly matches the proposed class "{class_number}"
+      * ALSO mark True if the mark's class is in a coordinated or related class grouping you identified
+    - For Goods & Services Match (True/False), compare the mark's goods/services to the proposed goods/services
+    - Always include the FULL goods/services description in your output, not just the class number
+    - For One/Two Letter differences, carefully verify the exact letter count difference
+    - For Similar marks, you MUST explicitly state whether similarity is Phonetic, Semantic, or Functional
+    - DO NOT omit any marks that are phonetically similar - they must appear in the similar_marks section with similarity_type="Phonetic"
 """  
   
     try:  
@@ -594,6 +692,48 @@ FORMAT YOUR RESPONSE STRICTLY IN JSON:
                     raw_results = json.loads(json_str)  
                     # Apply consistency checking  
                     corrected_results = consistency_check(mark, raw_results)  
+                    
+                    # Additional validation for phonetic/semantic matches
+                    similar_marks = corrected_results.get('similar_marks', [])
+                    new_similar_marks = []
+                    
+                    # First process existing similar marks
+                    for similar_mark in similar_marks:
+                        conflict_mark = similar_mark['mark']
+                        if similar_mark.get('similarity_type') == 'Phonetic':
+                            similar_mark['valid_phonetic_match'] = is_phonetically_equivalent(mark, conflict_mark)
+                        elif similar_mark.get('similarity_type') == 'Semantic':
+                            similar_mark['valid_semantic_match'] = is_semantically_equivalent(mark, conflict_mark)
+                        new_similar_marks.append(similar_mark)
+                    
+                    # Now check all conflicts for potential phonetic matches that might have been missed
+                    for conflict in relevant_conflicts:
+                        conflict_mark = conflict.get('trademark_name', '')
+                        if is_phonetically_equivalent(mark, conflict_mark):
+                            # Check if this conflict is already in similar_marks
+                            already_listed = any(
+                                sm['mark'] == conflict_mark 
+                                and sm.get('similarity_type') == 'Phonetic' 
+                                for sm in new_similar_marks
+                            )
+                            
+                            if not already_listed:
+                                # Add as a new phonetic match
+                                new_similar_marks.append({
+                                    'mark': conflict_mark,
+                                    'owner': conflict.get('owner', 'Unknown'),
+                                    'goods_services': conflict.get('goods_services', ''),
+                                    'status': conflict.get('status', 'Unknown'),
+                                    'class': conflict.get('class', ''),
+                                    'similarity_type': 'Phonetic',
+                                    'class_match': conflict.get('class', '') == class_number or conflict.get('class', '') in raw_results.get('identified_coordinated_classes', []),
+                                    'goods_services_match': True,  # Assuming validate_trademark_relevance already filtered these
+                                    'valid_phonetic_match': True,
+                                    'added_by_validation': True  # Flag to indicate this was added in validation
+                                })
+                    
+                    corrected_results['similar_marks'] = new_similar_marks
+                    
                     return corrected_results  
                 except json.JSONDecodeError:  
                     return {  
@@ -652,198 +792,93 @@ FORMAT YOUR RESPONSE STRICTLY IN JSON:
                 "explanation": "Error occurred during analysis"
             }
         }
-
-
-def component_consistency_check(mark, results):
-    """
-    Verify component analysis results for consistency and correctness.
     
-    Args:
-        mark: The proposed trademark
-        results: Raw component analysis results
-        
-    Returns:
-        Validated and corrected component analysis results
-    """
-    corrected_results = results.copy()
-    
-    # Ensure coordinated classes exist
-    if "identified_coordinated_classes" not in corrected_results:
-        corrected_results["identified_coordinated_classes"] = []
-    
-    if "coordinated_classes_explanation" not in corrected_results:
-        corrected_results["coordinated_classes_explanation"] = "No coordinated classes identified"
-    
-    # Check components field
-    if "components" not in corrected_results:
-        corrected_results["components"] = []
-    
-    # Validate each component and its marks
-    for i, component in enumerate(corrected_results.get("components", [])):
-        # Ensure component has name and marks fields
-        if "component" not in component:
-            component["component"] = f"Component {i+1}"
-        
-        if "marks" not in component:
-            component["marks"] = []
-        
-        # Ensure component distinctiveness
-        if "distinctiveness" not in component:
-            # Default to descriptive if not specified
-            component["distinctiveness"] = "DESCRIPTIVE"
-        
-        # Check each mark in the component
-        for j, mark_entry in enumerate(component.get("marks", [])):
-            # Ensure all required fields exist
-            required_fields = ['mark', 'owner', 'goods_services', 'status', 'class', 'class_match', 'goods_services_match']
-            for field in required_fields:
-                if field not in mark_entry:
-                    if field == 'class_match' or field == 'goods_services_match':
-                        corrected_results["components"][i]["marks"][j][field] = False
-                    else:
-                        corrected_results["components"][i]["marks"][j][field] = "Unknown"
-    
-    # Validate crowded field analysis
-    if "crowded_field" not in corrected_results:
-        corrected_results["crowded_field"] = {
-            "total_hits": 0,
-            "distinct_owner_percentage": 0,
-            "is_crowded": False,
-            "explanation": "Unable to determine crowded field status"
-        }
-    else:
-        # Ensure all required crowded field fields exist
-        if "total_hits" not in corrected_results["crowded_field"]:
-            corrected_results["crowded_field"]["total_hits"] = 0
-            
-        if "distinct_owner_percentage" not in corrected_results["crowded_field"]:
-            corrected_results["crowded_field"]["distinct_owner_percentage"] = 0
-            
-        if "is_crowded" not in corrected_results["crowded_field"]:
-            corrected_results["crowded_field"]["is_crowded"] = False
-            
-        if "explanation" not in corrected_results["crowded_field"]:
-            corrected_results["crowded_field"]["explanation"] = "Unable to determine crowded field status"
-    
-    return corrected_results
-
 
 def section_two_analysis(mark, class_number, goods_services, relevant_conflicts):  
     """Perform Section II: Component Analysis."""  
     client = get_azure_client()  
   
     system_prompt = """
-You are a trademark attorney and expert in trademark opinion writing. Your task is to conduct **Section II: Component Analysis** for a proposed trademark. Please follow these structured steps and format your entire response in JSON.
+    You are a trademark expert attorney specializing in trademark opinion writing.
+    
+    Please perform an analysis focusing on Section II: Component Analysis. In this section, you should:
 
-🔍 COMPONENT ANALYSIS REQUIREMENTS:
+    (a) Identify and break the proposed trademark into its components (if it is compound).
+    (b) For each component, analyze marks that incorporate that component.
+    (c) For each conflict record, include details such as the owner, goods/services, registration status, and class information.
+    (d) Determine flags for both "goods_services_match" and "class_match."
 
-(a) Break the proposed trademark into individual components (if compound).  
-(b) For each component, identify relevant conflict marks that incorporate that component.  
-(c) For each conflict, provide the following details:  
-    - Full mark  
-    - Owner name  
-    - Goods/services (FULL description)  
-    - Class number  
-    - Registration status (LIVE or DEAD)  
-    - Flags for:  
-        * `class_match`: True if in the same or coordinated class  
-        * `goods_services_match`: True if similar or overlapping goods/services  
-(d) Evaluate the distinctiveness of each component:  
-    - Use one of: `GENERIC`, `DESCRIPTIVE`, `SUGGESTIVE`, `ARBITRARY`, `FANCIFUL`
+    IMPORTANT INSTRUCTIONS FOR COORDINATED CLASS ANALYSIS:
+    • First, analyze the provided goods/services description to identify which trademark classes are closely related or coordinated with the proposed trademark's class.
+    • You MUST thoroughly analyze and include conflicts across RELATED and COORDINATED classes, not just exact class matches.
+    • Common coordinated class groupings include:
+      - Food and beverage products: Consider classes 29, 30, 31, 32, 35, 43
+      - Furniture and home goods: Consider classes 20, 35, 42
+      - Clothing and fashion: Consider classes 18, 25, 35
+      - Technology and software: Consider classes 9, 38, 42
+      - Health and beauty: Consider classes 3, 5, 44
+      - Entertainment: Consider classes 9, 41, 42
+    • However, do not limit yourself to these examples - use your expertise to identify all relevant coordinated classes for the specific goods/services.
+    • If ANY component of the proposed trademark appears in ANY other class, this must be flagged.
+    • DO NOT MISS conflicts across coordinated classes - this is CRITICAL.
 
-📘 COORDINATED CLASS ANALYSIS (CRITICAL):
-
-You **must** identify not only exact class matches but also any coordinated or related classes. Use trademark practice and industry standards to determine which classes relate to the proposed goods/services. 
-
-✅ Example coordinated class groupings (not exhaustive):  
-- **Food & Beverage**: 29, 30, 31, 32, 35, 43  
-- **Furniture/Home Goods**: 20, 35, 42  
-- **Fashion**: 18, 25, 35  
-- **Technology/Software**: 9, 38, 42  
-- **Health/Beauty**: 3, 5, 44  
-- **Entertainment**: 9, 41, 42
-
-You are expected to go **beyond** this list and apply expert reasoning based on the proposed trademark’s actual goods/services. Clearly explain **why** the identified classes are relevant.
-
-⚠️ KEY REMINDERS:
-- If ANY component appears in ANY other class—even outside the exact class—it must be flagged.
-- Do not overlook conflicts in **related/coordinated classes**—mark `class_match = true` for all those.
-- Include full goods/services text. Avoid summarizing.
-
-📊 CROWDED FIELD ANALYSIS:
-
-Provide a statistical overview:
-- Count the total number of relevant marks identified across components  
-- Calculate the percentage owned by distinct owners  
-- Determine if the field is "crowded" (typically over 50% from different owners)  
-- Explain how a crowded field may reduce trademark risk
-
-🧾 OUTPUT FORMAT (REQUIRED: JSON ONLY):
-
-{
-  "identified_coordinated_classes": [LIST OF CLASS NUMBERS],
-  "coordinated_classes_explanation": "[DETAILED EXPLANATION]",
-  "components": [
+    • When comparing classes, do not only check for an exact match. Explicitly check whether a conflict is registered in a coordinated or related class; for instance, if a conflict is in a related class grouping, you must mark it with class_match = True.
+    • Additionally, perform a crowded field analysis by including total compound counts, the percentage of marks from different owners, and a determination of whether the field is crowded.
+    • Return your answer in JSON format with keys "components" and "crowded_field."
+    
+    YOUR RESPONSE MUST BE IN JSON FORMAT:
     {
-      "component": "[COMPONENT NAME]",
-      "marks": [
+      "identified_coordinated_classes": [LIST OF RELATED CLASS NUMBERS],
+      "coordinated_classes_explanation": "[EXPLANATION OF WHY THESE CLASSES ARE RELATED TO THE PROPOSED TRADEMARK]",
+      "components": [
         {
-          "mark": "[CONFLICTING TRADEMARK]",
-          "owner": "[OWNER NAME]",
-          "goods_services": "[FULL GOODS/SERVICES DESCRIPTION]",
-          "status": "[LIVE/DEAD]",
-          "class": "[CLASS NUMBER]",
-          "class_match": true|false,
-          "goods_services_match": true|false
+          "component": "[COMPONENT NAME]",
+          "marks": [
+            {
+              "mark": "[TRADEMARK NAME]",
+              "owner": "[OWNER NAME]",
+              "goods_services": "[GOODS/SERVICES]",
+              "status": "[LIVE/DEAD]",
+              "class": "[CLASS]",
+              "class_match": true|false,
+              "goods_services_match": true|false
+            }
+          ],
+          "distinctiveness": "[GENERIC|DESCRIPTIVE|SUGGESTIVE|ARBITRARY|FANCIFUL]"
         }
       ],
-      "distinctiveness": "[GENERIC|DESCRIPTIVE|SUGGESTIVE|ARBITRARY|FANCIFUL]"
+      "crowded_field": {
+        "total_hits": [NUMBER],
+        "distinct_owner_percentage": [PERCENTAGE],
+        "is_crowded": true|false,
+        "explanation": "[DETAILED EXPLANATION OF FINDINGS, INCLUDING REDUCED RISK IF is_crowded=true]"
+      }
     }
-  ],
-  "crowded_field": {
-    "total_hits": [NUMBER],
-    "distinct_owner_percentage": [PERCENTAGE],
-    "is_crowded": true|false,
-    "explanation": "[EXPLAIN IMPACT OF A CROWDED FIELD ON RISK]"
-  }
-}
-⭐ IMPORTANT: Sort all identified conflicting marks alphabetically by mark name under each component.
-"""
-  
+"""  
   
     user_message = f"""
-Proposed Trademark: {mark}
-Class: {class_number}
-Goods/Services: {goods_services}
-
-Trademark Conflicts:
-{json.dumps(relevant_conflicts, indent=2)}
-
-Analyze ONLY Section II: Component Analysis.
-
-IMPORTANT REMINDERS:
-
-- Break the proposed trademark into components (if compound) and analyze conflicts that contain each component.
-- For each conflicting mark:
-  * Include the full mark, owner name, class, status (LIVE/DEAD), and FULL goods/services description.
-  * Set `class_match = True` if:
-      - The conflicting mark is in the same class as "{class_number}", OR
-      - The conflicting mark is in a related or coordinated class based on the proposed goods/services "{goods_services}"
-  * Set `goods_services_match = True` if the conflicting mark covers similar or overlapping goods/services to "{goods_services}"
-
-- For coordinated class analysis:
-  * Identify ALL classes that are related or coordinated to the proposed class.
-  * Provide reasoning for why each class is coordinated, based on standard groupings and your analysis of "{goods_services}"
-
-- Crowded Field Analysis:
-  1. Show the total number of compound mark hits involving ANY component of the proposed trademark.
-  2. Count how many distinct owners are represented among those marks.
-  3. Calculate the percentage of marks owned by different parties.
-  4. If more than 50% of the marks have different owners, set `is_crowded = true` and explain how this reduces potential risk.
-
-- Output must be detailed, thorough, and clearly structured. Ensure that all logic is explicitly shown and justified.
-"""
-  
+    Proposed Trademark: {mark}
+    Class: {class_number}
+    Goods/Services: {goods_services}
+    
+    Trademark Conflicts:
+    {json.dumps(relevant_conflicts, indent=2)}
+    
+    Analyze ONLY Section II: Component Analysis.
+    
+    IMPORTANT REMINDERS:
+    - Include exact counts and percentages for all statistics
+    - For Crowded Field Analysis:
+      1. Show the total number of compound mark hits
+      2. Calculate percentage of marks with different owners
+      3. If >50% have different owners, set is_crowded=true and mention decreased risk
+    - For Class Match (True/False):
+      * First, identify all coordinated classes related to the proposed goods/services "{goods_services}"
+      * Mark True if the mark's class exactly matches the proposed class "{class_number}"
+      * ALSO mark True if the mark's class is in a coordinated or related class grouping you identified
+    - For Goods & Services Match (True/False), compare the mark's goods/services to the proposed goods/services "{goods_services}"
+    - Always include the FULL goods/services description in your output, not just the class number
+"""  
   
     try:  
         response = client.chat.completions.create(  
@@ -864,9 +899,7 @@ IMPORTANT REMINDERS:
                 json_str = json_match.group(1) or json_match.group(2)  
                 try:  
                     raw_results = json.loads(json_str)
-                    # Apply consistency checking
-                    corrected_results = component_consistency_check(mark, raw_results)
-                    return corrected_results
+                    return raw_results
                 except json.JSONDecodeError:  
                     return {
                         "identified_coordinated_classes": [],
@@ -918,7 +951,7 @@ IMPORTANT REMINDERS:
         }
 
 
-def section_three_analysis(mark, class_number, goods_services, section_one_results, section_two_results=None):
+def section_three_analysis(mark, class_number, goods_services, section_one_results, section_two_results):
     """
     Perform Section III: Risk Assessment and Summary
     
@@ -927,156 +960,81 @@ def section_three_analysis(mark, class_number, goods_services, section_one_resul
         class_number: The class of the proposed trademark
         goods_services: The goods and services of the proposed trademark
         section_one_results: Results from Section I
-        section_two_results: Results from Section II (may be None if Section II was skipped)
+        section_two_results: Results from Section II
         
     Returns:
         A structured risk assessment and summary
     """
     client = get_azure_client()
     
-    # Check if we should skip Section Two analysis and directly set risk to medium-high
-    skip_section_two = False
-    skip_reason = ""
-    
-    # Check for phonetic or semantic marks with class match and goods/services match
-    for mark_entry in section_one_results.get("similar_marks", []):
-        if mark_entry.get("similarity_type") in ["Phonetic", "Semantic"]:
-            if mark_entry.get("class_match") and mark_entry.get("goods_services_match"):
-                skip_section_two = True
-                skip_reason = "Found a Phonetic or Semantic similar mark with both class match and goods/services match"
-                break
-            elif mark_entry.get("class_match"):
-                skip_section_two = True
-                skip_reason = "Found a Phonetic or Semantic similar mark with coordinated class match"
-                break
-    
     system_prompt = """
-You are a trademark expert attorney specializing in trademark opinion writing.
-
-Please analyze the results from Sections I and II to create Section III: Risk Assessment and Summary. Your analysis should address the following elements in detail:
-
-1. Likelihood of Confusion:
-   • Evaluate potential consumer confusion between the proposed trademark and any conflicting marks.
-   • Take into account both exact class matches and coordinated/related class conflicts.
-   • Discuss phonetic, visual, or conceptual similarities, and overlapping goods/services.
-
-2. Descriptiveness:
-   • Analyze whether the proposed trademark is descriptive in light of the goods/services and compared to existing conflicts.
-   • Note whether any conflicts suggest a common industry term or generic language.
-
-3. Aggressive Enforcement and Litigious Behavior:
-   • Identify any conflicting mark owners with a history of enforcement or litigation.
-   • Extract and summarize patterns such as frequent oppositions, cease-and-desist actions, or broad trademark portfolios.
-
-4. Overall Risk Rating:
-   • Provide risk ratings for Registration and Use separately:
-     - For Registration: MEDIUM-HIGH when identical marks are present
-     - For Use: MEDIUM-HIGH when identical marks are present
-     - When no identical marks exist but similar marks are found:
-       * Start with MEDIUM-HIGH risk level
-       * If crowded field exists (>50% different owners), reduce risk by one level:
-         - MEDIUM-HIGH → MEDIUM-LOW
-         - MEDIUM → LOW (but never go below MEDIUM-LOW)
-   • Justify the rating using findings from:
-     - Class and goods/services overlap (including coordinated class logic)
-     - Crowded field metrics (e.g., distinct owner percentage)
-     - Descriptiveness and enforceability of components
-     - History of enforcement activity
-
-IMPORTANT:
-- When determining likelihood of confusion, incorporate coordinated class analysis.
-- Crowded field data from Section II must be factored into risk mitigation. If >50% of conflicting marks are owned by unrelated entities, that reduces enforceability and legal risk by one level.
-- For identical marks, ALWAYS rate risk as MEDIUM-HIGH for Registration and MEDIUM-HIGH for Use, regardless of crowded field percentage.
-- When no identical marks exist but similar marks are found in a crowded field (>50% different owners), reduce risk by one level.
-- Do NOT increase risk to HIGH even when identical marks are present.
-- Do NOT reduce risk level below MEDIUM-LOW.
-
-Your output MUST be returned in the following JSON format:
-
-{
-  "likelihood_of_confusion": [
-    "[KEY POINT ABOUT LIKELIHOOD OF CONFUSION]",
-    "[ADDITIONAL POINT ABOUT LIKELIHOOD OF CONFUSION]"
-  ],
-  "descriptiveness": [
-    "[KEY POINT ABOUT DESCRIPTIVENESS]"
-  ],
-  "aggressive_enforcement": {
-    "owners": [
-      {
-        "name": "[OWNER NAME]",
-        "enforcement_patterns": [
-          "[PATTERN 1]",
-          "[PATTERN 2]"
-        ]
-      }
-    ],
-    "enforcement_landscape": [
-      "[KEY POINT ABOUT ENFORCEMENT LANDSCAPE]",
-      "[ADDITIONAL POINT ABOUT ENFORCEMENT LANDSCAPE]"
-    ]
-  },
-  "overall_risk": {
-    "level_registration": "MEDIUM-HIGH",
-    "explanation_registration": "[EXPLANATION OF RISK LEVEL WITH FOCUS ON IDENTICAL MARKS]",
-    "level_use": "MEDIUM-HIGH",
-    "explanation_use": "[EXPLANATION OF RISK LEVEL]",
-    "crowded_field_percentage": [PERCENTAGE],
-    "crowded_field_impact": "[EXPLANATION OF HOW CROWDED FIELD AFFECTED RISK LEVEL]"
-  }
-}
-"""
+    You are a trademark expert attorney specializing in trademark opinion writing.
     
-    # Prepare the user message based on whether Section II was skipped
-    if skip_section_two:
-        user_message = f"""
-Proposed Trademark: {mark}
-Class: {class_number}
-Goods and Services: {goods_services}
+    Please analyze the results from Sections I and II to create Section III: Risk Assessment and Summary. Your analysis should address:
 
-Section I Results:
-{json.dumps(section_one_results, indent=2)}
+    Likelihood of Confusion – Evaluate the potential for confusion between the proposed trademark and conflicting marks, including the impact of coordinated class conflicts.
+    Descriptiveness – Assess whether the proposed trademark's goods/services are descriptive compared to the conflicts.
+    Aggressive Enforcement and Litigious Behavior – Identify any patterns of aggressive enforcement among the owners of the conflicting marks.
+    Overall Risk – Provide a risk rating (HIGH, MEDIUM-HIGH, MEDIUM, MEDIUM-LOW, LOW) along with an explanation.
 
-SPECIAL INSTRUCTION: Section II analysis was skipped because: {skip_reason}. According to our risk assessment rules, when a Phonetic or Semantic mark is identified with a class match (and either goods/services match or coordinated class match), the risk level is automatically set to MEDIUM-HIGH for both Registration and Use.
-
-Create Section III: Risk Assessment and Summary.
-
-IMPORTANT REMINDERS:
-- SET the risk level to MEDIUM-HIGH for both Registration and Use
-- Include an explanation that this risk level is due to the presence of a Phonetic or Semantic similar mark with class match
-- Focus the risk discussion on the similar marks identified in Section I
-- For aggressive enforcement analysis, examine the owners of similar marks
-- Specifically analyze coordinated class conflicts
-"""
-    else:
-        user_message = f"""
-Proposed Trademark: {mark}
-Class: {class_number}
-Goods and Services: {goods_services}
-
-Section I Results:
-{json.dumps(section_one_results, indent=2)}
-
-Section II Results:
-{json.dumps(section_two_results, indent=2)}
-
-Create Section III: Risk Assessment and Summary.
-
-IMPORTANT REMINDERS:
-- Focus the risk discussion on crowded field analysis and identical marks
-- Include the percentage of overlapping marks from crowded field analysis
-- For identical marks specifically, ALWAYS set risk level to:
-  * MEDIUM-HIGH for Registration
-  * MEDIUM-HIGH for Use
-- When no identical marks exist but similar marks are found:
-  * Start with MEDIUM-HIGH risk level
-  * If crowded field exists (>50% different owners), reduce risk by one level:
-    - MEDIUM-HIGH → MEDIUM-LOW
-    - MEDIUM → LOW (but never go below MEDIUM-LOW)
-- Never increase risk to HIGH even with identical marks present
-- For aggressive enforcement analysis, examine the owners of similar marks
-- Specifically analyze coordinated class conflicts
-"""
+    IMPORTANT:
+    • In your risk analysis, consider the fact that a conflict may come from a coordinated or related class. For example, if a conflict is registered under a class different from 20 but falls within a related grouping (such as a class that frequently aligns with furniture or home furnishings), mention this and incorporate its impact on risk.
+    • Also, include metrics from crowded field analysis to determine if overlapping conflicting marks reduce the overall risk.
+    • Return your response in JSON format with keys: likelihood_of_confusion, descriptiveness, aggressive_enforcement, and overall_risk.
+    
+    YOUR RESPONSE MUST BE IN JSON FORMAT:
+    {
+      "likelihood_of_confusion": [
+        "[KEY POINT ABOUT LIKELIHOOD OF CONFUSION]",
+        "[ADDITIONAL POINT ABOUT LIKELIHOOD OF CONFUSION]"
+      ],
+      "descriptiveness": [
+        "[KEY POINT ABOUT DESCRIPTIVENESS]"
+      ],
+      "aggressive_enforcement": {
+        "owners": [
+          {
+            "name": "[OWNER NAME]",
+            "enforcement_patterns": [
+              "[PATTERN 1]",
+              "[PATTERN 2]"
+            ]
+          }
+        ],
+        "enforcement_landscape": [
+          "[KEY POINT ABOUT ENFORCEMENT LANDSCAPE]",
+          "[ADDITIONAL POINT ABOUT ENFORCEMENT LANDSCAPE]"
+        ]
+      },
+      "overall_risk": {
+        "level": "[HIGH|MEDIUM-HIGH|MEDIUM|MEDIUM-LOW|LOW]",
+        "explanation": "[EXPLANATION OF RISK LEVEL WITH FOCUS ON CROWDED FIELD]",
+        "crowded_field_percentage": [PERCENTAGE]
+      }
+    }
+    """
+    
+    user_message = f"""
+    Proposed Trademark: {mark}
+    Class: {class_number}
+    Goods and Services: {goods_services}
+    
+    Section I Results:
+    {json.dumps(section_one_results, indent=2)}
+    
+    Section II Results:
+    {json.dumps(section_two_results, indent=2)}
+    
+    Create Section III: Risk Assessment and Summary.
+    
+    IMPORTANT REMINDERS:
+    - Focus the risk discussion on crowded field analysis
+    - Include the percentage of overlapping marks from crowded field analysis
+    - Do NOT include recommendations
+    - If the risk is Medium-High and a crowded field is identified, reduce it to Medium-Low
+    - For aggressive enforcement analysis, examine the owners of similar marks and identify any known for litigious behavior
+    - Specifically analyze coordinated class conflicts - marks in related class groupings may present significant risk even if they're not in the exact same class
+    """
     
     try:
         response = client.chat.completions.create(
@@ -1106,12 +1064,9 @@ IMPORTANT REMINDERS:
                             "enforcement_landscape": ["Unable to determine enforcement patterns."]
                         },
                         "overall_risk": {
-                            "level_registration": "MEDIUM-HIGH" if skip_section_two else "MEDIUM-LOW",
-                            "explanation_registration": f"Risk level set to MEDIUM-HIGH due to {skip_reason}" if skip_section_two else "Unable to determine precise risk level.",
-                            "level_use": "MEDIUM-HIGH" if skip_section_two else "MEDIUM-LOW",
-                            "explanation_use": f"Risk level set to MEDIUM-HIGH due to {skip_reason}" if skip_section_two else "Unable to determine precise risk level.",
-                            "crowded_field_percentage": 0,
-                            "crowded_field_impact": "Section II analysis was skipped due to high-risk marks in Section I" if skip_section_two else "Unable to determine crowded field impact"
+                            "level": "MEDIUM",
+                            "explanation": "Unable to determine precise risk level.",
+                            "crowded_field_percentage": 0
                         }
                     }
             else:
@@ -1123,12 +1078,9 @@ IMPORTANT REMINDERS:
                         "enforcement_landscape": ["Unable to determine enforcement patterns."]
                     },
                     "overall_risk": {
-                        "level_registration": "MEDIUM-HIGH" if skip_section_two else "MEDIUM-LOW",
-                        "explanation_registration": f"Risk level set to MEDIUM-HIGH due to {skip_reason}" if skip_section_two else "Unable to determine precise risk level.",
-                        "level_use": "MEDIUM-HIGH" if skip_section_two else "MEDIUM-LOW",
-                        "explanation_use": f"Risk level set to MEDIUM-HIGH due to {skip_reason}" if skip_section_two else "Unable to determine precise risk level.",
-                        "crowded_field_percentage": 0,
-                        "crowded_field_impact": "Section II analysis was skipped due to high-risk marks in Section I" if skip_section_two else "Unable to determine crowded field impact"
+                        "level": "MEDIUM",
+                        "explanation": "Unable to determine precise risk level.",
+                        "crowded_field_percentage": 0
                     }
                 }
         else:
@@ -1140,12 +1092,9 @@ IMPORTANT REMINDERS:
                     "enforcement_landscape": ["Unable to determine enforcement patterns."]
                 },
                 "overall_risk": {
-                    "level_registration": "MEDIUM-HIGH" if skip_section_two else "MEDIUM-LOW",
-                    "explanation_registration": f"Risk level set to MEDIUM-HIGH due to {skip_reason}" if skip_section_two else "Unable to determine precise risk level.",
-                    "level_use": "MEDIUM-HIGH" if skip_section_two else "MEDIUM-LOW",
-                    "explanation_use": f"Risk level set to MEDIUM-HIGH due to {skip_reason}" if skip_section_two else "Unable to determine precise risk level.",
-                    "crowded_field_percentage": 0,
-                    "crowded_field_impact": "Section II analysis was skipped due to high-risk marks in Section I" if skip_section_two else "Unable to determine crowded field impact"
+                    "level": "MEDIUM",
+                    "explanation": "Unable to determine precise risk level.",
+                    "crowded_field_percentage": 0
                 }
             }
     except Exception as e:
@@ -1158,12 +1107,9 @@ IMPORTANT REMINDERS:
                 "enforcement_landscape": ["Unable to determine enforcement patterns."]
             },
             "overall_risk": {
-                "level_registration": "MEDIUM-HIGH" if skip_section_two else "MEDIUM-LOW",
-                "explanation_registration": f"Risk level set to MEDIUM-HIGH due to {skip_reason}" if skip_section_two else "Unable to determine precise risk level.",
-                "level_use": "MEDIUM-HIGH" if skip_section_two else "MEDIUM-LOW",
-                "explanation_use": f"Risk level set to MEDIUM-HIGH due to {skip_reason}" if skip_section_two else "Unable to determine precise risk level.",
-                "crowded_field_percentage": 0,
-                "crowded_field_impact": "Section II analysis was skipped due to high-risk marks in Section I" if skip_section_two else "Unable to determine crowded field impact"
+                "level": "MEDIUM",
+                "explanation": "Unable to determine precise risk level.",
+                "crowded_field_percentage": 0
             }
         }
 
@@ -1288,74 +1234,79 @@ from docx import Document
 from docx.shared import Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 
-def export_trademark_opinion_to_word(trademark_output, web_common_law_output=None):
+def export_trademark_opinion_to_word(opinion_output):
     """
-    Export trademark opinion to Word document (updated to optionally handle web common law opinion)
-    Maintains all original functionality while adding web common law support
+    Export trademark opinion to Word document with proper formatting and table support
     """
     document = Document()
     
-    # Add main title
-    title = document.add_heading('Trademark Analysis Report', level=0)
-    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    
-    # Process trademark opinion (original functionality)
-    document.add_heading('Trademark Office Opinion', level=1)
-    process_opinion_content(document, trademark_output)
-    
-    # Conditionally add web common law opinion if provided
-    if web_common_law_output:
-        document.add_heading('Web Common Law Opinion', level=1)
-        process_opinion_content(document, web_common_law_output)
-    
-    # Save the document
-    filename = "Trademark_Opinion.docx" if not web_common_law_output else "Combined_Trademark_Opinion.docx"
-    document.save(filename)
-    return filename
-
-def process_opinion_content(document, content):
-    """
-    Helper function to process opinion content (trademark or web common law)
-    Maintains original table handling logic while improving formatting
-    """
-    lines = content.split('\n')
+    # Track if we're currently building a table
     current_table = None
+    header_row = []
     
-    for line in lines:
-        line = line.strip()
+    # Parse and handle different sections
+    lines = opinion_output.split('\n')
+    i = 0
+    while i < len(lines):
+        line = lines[i].strip()
         
-        if not line:
-            continue
+        # Handle table headers
+        if line.startswith('|') and ('Trademark' in line or 'Cited Term' in line or 'Component' in line):
+            # Extract header cells
+            header_cells = [cell.strip() for cell in line.split('|') if cell.strip()]
             
-        # Handle section headers
-        if line.startswith(('Section', 'WEB COMMON LAW OPINION')):
-            document.add_heading(line, level=2)
-            continue
+            # Get the separator line that defines the table structure
+            if i + 1 < len(lines) and '---' in lines[i+1]:
+                i += 1  # Skip the separator line
             
-        # Original table handling logic (preserved exactly)
-        if '|' in line and '---' not in line:
+            # Create a new table
+            current_table = document.add_table(rows=1, cols=len(header_cells))
+            current_table.style = 'Table Grid'
+            
+            # Add header row
+            for j, cell in enumerate(header_cells):
+                if j < len(current_table.rows[0].cells):
+                    current_table.rows[0].cells[j].text = cell
+            
+            header_row = header_cells
+            
+        # Handle table data rows
+        elif line.startswith('|') and current_table is not None:
             cells = [cell.strip() for cell in line.split('|') if cell.strip()]
             
-            if current_table is None:
-                current_table = document.add_table(rows=1, cols=len(cells))
-                current_table.style = 'Table Grid'
-                hdr_cells = current_table.rows[0].cells
-                for i, cell in enumerate(cells):
-                    hdr_cells[i].text = cell
+            if cells:  # Only proceed if we have cells
+                # Add a new row
+                new_row = current_table.add_row()
+                
+                # Fill the row with data, ensuring we don't exceed the number of columns
+                for j, cell in enumerate(cells):
+                    if j < len(new_row.cells):
+                        new_row.cells[j].text = cell
+        
+        # Handle regular paragraphs (section headers, etc.)
+        elif line and not line.startswith('|'):
+            # If line is a section header (ends with :)
+            if line.endswith(':') or line.startswith('Section'):
+                p = document.add_paragraph()
+                run = p.add_run(line)
+                run.bold = True
+                p.space_after = Pt(12)
             else:
-                row_cells = current_table.add_row().cells
-                for i, cell in enumerate(cells):
-                    row_cells[i].text = cell
-        else:
-            current_table = None
-            p = document.add_paragraph(line)
-            
-            # Enhanced formatting for risk assessment
-            if any(keyword in line for keyword in ['Risk Category', 'Overall Risk']):
-                p.runs[0].bold = True
-                p.runs[0].font.size = Pt(12)
+                # Regular paragraph
+                document.add_paragraph(line)
+                
+            # Reset table tracking when we hit a new paragraph
+            if line.strip() and current_table is not None:
+                current_table = None
+        
+        i += 1
+    
+    # Save the document
+    filename = "Trademark_Opinion.docx"
+    document.save(filename)
+    return filename 
 
-# ------- 
+# -------------------------------------------------------------
 
 from typing import List  
 import fitz  # PyMuPDF  
@@ -1363,461 +1314,472 @@ from PIL import Image
 import io  
   
   
-def Web_CommonLaw_Overview_List(document: str, start_page: int, pdf_document: fitz.Document) -> List[int]:  
-    """  
-    Extract the page numbers for the 'Web Common Law Overview List' section.  
-    """  
-    pages_with_overview = []  
-    for i in range(start_page, min(start_page + 2, pdf_document.page_count)):  
-        page = pdf_document.load_page(i)  
-        page_text = page.get_text()  
-        if "Record Nr." in page_text:  # Check for "Record Nr." in the text  
-            pages_with_overview.append(i + 1)  # Use 1-based indexing for page numbers  
-    return pages_with_overview  
+# def Web_CommonLaw_Overview_List(document: str, start_page: int, pdf_document: fitz.Document) -> List[int]:  
+#     """  
+#     Extract the page numbers for the 'Web Common Law Overview List' section.  
+#     """  
+#     pages_with_overview = []  
+#     for i in range(start_page, min(start_page + 2, pdf_document.page_count)):  
+#         page = pdf_document.load_page(i)  
+#         page_text = page.get_text()  
+#         if "Record Nr." in page_text:  # Check for "Record Nr." in the text  
+#             pages_with_overview.append(i + 1)  # Use 1-based indexing for page numbers  
+#     return pages_with_overview  
   
   
-def convert_pages_to_pil_images(pdf_document: fitz.Document, page_numbers: List[int]) -> List[Image.Image]:  
-    """  
-    Convert the specified pages of the PDF to PIL images and return them as a list of PIL Image objects.  
-    """  
-    images = []  
-    for page_num in page_numbers:  
-        page = pdf_document.load_page(page_num - 1)  # Convert 1-based index to 0-based  
-        pix = page.get_pixmap()  # Render the page to a pixmap  
-        img = Image.open(io.BytesIO(pix.tobytes("png")))  # Convert pixmap to PIL Image  
-        images.append(img)  # Add the PIL Image object to the list  
-    return images  
+# def convert_pages_to_pil_images(pdf_document: fitz.Document, page_numbers: List[int]) -> List[Image.Image]:  
+#     """  
+#     Convert the specified pages of the PDF to PIL images and return them as a list of PIL Image objects.  
+#     """  
+#     images = []  
+#     for page_num in page_numbers:  
+#         page = pdf_document.load_page(page_num - 1)  # Convert 1-based index to 0-based  
+#         pix = page.get_pixmap()  # Render the page to a pixmap  
+#         img = Image.open(io.BytesIO(pix.tobytes("png")))  # Convert pixmap to PIL Image  
+#         images.append(img)  # Add the PIL Image object to the list  
+#     return images  
   
   
-def web_law_page(document_path: str) -> List[Image.Image]:  
-    """  
-    Return PIL Image objects of the pages where either:  
-    1. "Web Common Law Summary Page:" appears, or  
-    2. Both "Web Common Law Overview List" and "Record Nr." appear.  
-    """  
-    matching_pages = []  # List to store matching page numbers  
+# def web_law_page(document_path: str) -> List[Image.Image]:  
+#     """  
+#     Return PIL Image objects of the pages where either:  
+#     1. "Web Common Law Summary Page:" appears, or  
+#     2. Both "Web Common Law Overview List" and "Record Nr." appear.  
+#     """  
+#     matching_pages = []  # List to store matching page numbers  
   
-    with fitz.open(document_path) as pdf_document:  
-        for page_num in range(pdf_document.page_count):  
-            page = pdf_document.load_page(page_num)  
-            page_text = page.get_text()  
-            print(page_text)  
+#     with fitz.open(document_path) as pdf_document:  
+#         for page_num in range(pdf_document.page_count):  
+#             page = pdf_document.load_page(page_num)  
+#             page_text = page.get_text()  
+#             print(page_text)  
               
-            # Check for "Web Common Law Summary Page:"  
-            if "Web Common Law Page:" in page_text:  
-                matching_pages.append(page_num + 1)  
+#             # Check for "Web Common Law Summary Page:"  
+#             if "Web Common Law Page:" in page_text:  
+#                 matching_pages.append(page_num + 1)  
   
   
-            # Check for "Web Common Law Overview List" and "Record Nr."  
-            if "WCL-" in page_text:  
-                matching_pages.append(page_num + 1)  
-            # if "Web Common Law Overview List" in page_text and "Record Nr." in page_text:  
-            #     overview_pages = Web_CommonLaw_Overview_List(  
-            #         page_text, page_num, pdf_document  
-            #     )  
-            #     matching_pages.extend(overview_pages)  
+#             # Check for "Web Common Law Overview List" and "Record Nr."  
+#             if "WCL-" in page_text:  
+#                 matching_pages.append(page_num + 1)  
+#             # if "Web Common Law Overview List" in page_text and "Record Nr." in page_text:  
+#             #     overview_pages = Web_CommonLaw_Overview_List(  
+#             #         page_text, page_num, pdf_document  
+#             #     )  
+#             #     matching_pages.extend(overview_pages)  
   
   
-        # Remove duplicates and sort the page numbers  
-        matching_pages = sorted(set(matching_pages))  
+#         # Remove duplicates and sort the page numbers  
+#         matching_pages = sorted(set(matching_pages))  
   
-        # Convert matching pages to PIL images  
-        images = convert_pages_to_pil_images(pdf_document, matching_pages)  
+#         # Convert matching pages to PIL images  
+#         images = convert_pages_to_pil_images(pdf_document, matching_pages)  
   
-    return images  
+#     return images  
                 
-# ---- extraction logic
+# # ---- extraction logic
 
-import io  
-import base64  
-import cv2  
-import json  
-import requests  
-import os
-from PIL import Image  
-from typing import List  
-import numpy as np
+# import io  
+# import base64  
+# import cv2  
+# import json  
+# import requests  
+# import os
+# from PIL import Image  
+# from typing import List  
+# import numpy as np
   
-# Function to encode images using OpenCV  
-def encode_image(image: Image.Image) -> str:  
-    """  
-    Encode a PIL Image as Base64 string using OpenCV.  
-    """  
-    # Convert PIL Image to numpy array for OpenCV  
-    image_np = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)  
-    buffered = cv2.imencode(".jpg", image_np)[1]  
-    return base64.b64encode(buffered).decode("utf-8")  
+# # Function to encode images using OpenCV  
+# def encode_image(image: Image.Image) -> str:  
+#     """  
+#     Encode a PIL Image as Base64 string using OpenCV.  
+#     """  
+#     # Convert PIL Image to numpy array for OpenCV  
+#     image_np = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)  
+#     buffered = cv2.imencode(".jpg", image_np)[1]  
+#     return base64.b64encode(buffered).decode("utf-8")  
   
   
-# Function to process a single image and get the response from LLM  
-def process_single_image(image: Image.Image, proposed_name: str) -> dict:  
-    """  
-    Process a single image by sending it to Azure OpenAI API.  
-    Cited term: Check for {proposed_name} in the image.
-    """        
-    azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-    api_key = os.getenv("AZURE_OPENAI_API_KEY")
-    model="gpt-4o"  
+# # Function to process a single image and get the response from LLM  
+# def process_single_image(image: Image.Image, proposed_name: str) -> dict:  
+#     """  
+#     Process a single image by sending it to Azure OpenAI API.  
+#     Cited term: Check for {proposed_name} in the image.
+#     """        
+#     azure_endpoint = os.getenv("AZURE_ENDPOINT")
+#     api_key = os.getenv("AZURE_API_KEY")
+#     model="gpt-4o"  
 
-    # Encode the image into Base64 using OpenCV  
-    base64_image = encode_image(image)  
+#     # Encode the image into Base64 using OpenCV  
+#     base64_image = encode_image(image)  
   
-    # Prepare the prompt for the LLM  
-    prompt = f"""Extract the following details from the given image: Cited term, Owner name, Goods & services.\n\n
+#     # Prepare the prompt for the LLM  
+#     prompt = f"""Extract the following details from the given image: Cited term, Owner name, Goods & services.\n\n
     
-                Cited Term:\n
-                - This is the snippet in the product/site text that *fully or partially matches* the physically highlighted or searched trademark name: {proposed_name}.
-                - You must prioritize any match that closely resembles '{proposed_name}' — e.g., 'ColorGrip', 'COLORGRIP', 'Color self Grip' , 'Grip Colour', 'color-grip', 'Grip' , or minor variations in spacing/punctuation.
+#                 Cited Term:\n
+#                 - This is the snippet in the product/site text that *fully or partially matches* the physically highlighted or searched trademark name: {proposed_name}.
+#                 - You must prioritize any match that closely resembles '{proposed_name}' — e.g., 'ColorGrip', 'COLORGRIP', 'Color self Grip' , 'Grip Colour', 'color-grip', 'Grip' , or minor variations in spacing/punctuation.
 
-                Owner Name (Brand):\n
-                - Identify the name of the individual or entity that owns or manufactures the product.
-                - Look for indicators like "Owner:," "Brand:," "by:," or "Manufacturer:."
-                - If none are found, return "Not specified."
+#                 Owner Name (Brand):\n
+#                 - Identify the name of the individual or entity that owns or manufactures the product.
+#                 - Look for indicators like "Owner:," "Brand:," "by:," or "Manufacturer:."
+#                 - If none are found, return "Not specified."
                 
-                Goods & Services:\n
-                - Extract the core goods and services associated with the trademark or product.  
-                - Provide relevant detail (e.g., "permanent hair color," "nail care polish," "hair accessories," or "hair styling tools").
+#                 Goods & Services:\n
+#                 - Extract the core goods and services associated with the trademark or product.  
+#                 - Provide relevant detail (e.g., "permanent hair color," "nail care polish," "hair accessories," or "hair styling tools").
     
-                Return output only in the exact below-mentioned format:  
-                Example output format:  
-                    Cited_term: ColourGrip,\n  
-                    Owner_name: Matrix, \n 
-                    Goods_&_services: Hair color products,\n    
-"""
+#                 Return output only in the exact below-mentioned format:  
+#                 Example output format:  
+#                     Cited_term: ColourGrip,\n  
+#                     Owner_name: Matrix, \n 
+#                     Goods_&_services: Hair color products,\n    
+# """
   
-    # Prepare the API payload  
-    data = {  
-        "model": model,  
-        "messages": [  
-            {  
-                "role": "system",  
-                "content": "You are a helpful assistant for extracting Meta Data based on the given Images [Note: Only return the required extracted data in the exact format mentioned].",  
-            },  
-            {  
-                "role": "user",  
-                "content": [  
-                    {"type": "text", "text": prompt},  
-                    {  
-                        "type": "image_url",  
-                        "image_url": {  
-                            "url": f"data:image/png;base64,{base64_image}"  
-                        },  
-                    },  
-                ],  
-            },  
-        ],  
-        "max_tokens": 200,  
-        "temperature": 0,  
-    }  
+#     # Prepare the API payload  
+#     data = {  
+#         "model": model,  
+#         "messages": [  
+#             {  
+#                 "role": "system",  
+#                 "content": "You are a helpful assistant for extracting Meta Data based on the given Images [Note: Only return the required extracted data in the exact format mentioned].",  
+#             },  
+#             {  
+#                 "role": "user",  
+#                 "content": [  
+#                     {"type": "text", "text": prompt},  
+#                     {  
+#                         "type": "image_url",  
+#                         "image_url": {  
+#                             "url": f"data:image/png;base64,{base64_image}"  
+#                         },  
+#                     },  
+#                 ],  
+#             },  
+#         ],  
+#         "max_tokens": 200,  
+#         "temperature": 0,  
+#     }  
   
-    # Send the API request  
-    headers = {"Content-Type": "application/json", "api-key": api_key}  
-    response = requests.post(  
-        f"{azure_endpoint}/openai/deployments/{model}/chat/completions?api-version=2024-10-01-preview",  
-        headers=headers,  
-        data=json.dumps(data),  
-    )  
+#     # Send the API request  
+#     headers = {"Content-Type": "application/json", "api-key": api_key}  
+#     response = requests.post(  
+#         f"{azure_endpoint}/openai/deployments/{model}/chat/completions?api-version=2024-10-01-preview",  
+#         headers=headers,  
+#         data=json.dumps(data),  
+#     )  
   
-    # Parse the response  
-    if response.status_code == 200:  
-        extracted_data = response.json()["choices"][0]["message"]["content"]  
-    else:  
-        extracted_data = "Failed to extract data"    
-    # Return the extracted data  
-    return {extracted_data.strip()}  
+#     # Parse the response  
+#     if response.status_code == 200:  
+#         extracted_data = response.json()["choices"][0]["message"]["content"]  
+#     else:  
+#         extracted_data = "Failed to extract data"    
+#     # Return the extracted data  
+#     return {extracted_data.strip()}  
   
   
-# Function to process all images one by one  
-def extract_web_common_law(page_images: List[Image.Image], proposed_name: str) -> List[dict]:  
-    """  
-    Send images one by one to Azure OpenAI GPT models,  
-    and collect the responses into a single array.  
-    """    
-    # Process each image and collect the results  
-    results = []  
-    for idx, image in enumerate(page_images):  
-        result = process_single_image(image, proposed_name)  
-        results.append(result)  
+# # Function to process all images one by one  
+# def extract_web_common_law(page_images: List[Image.Image], proposed_name: str) -> List[dict]:  
+#     """  
+#     Send images one by one to Azure OpenAI GPT models,  
+#     and collect the responses into a single array.  
+#     """    
+#     # Process each image and collect the results  
+#     results = []  
+#     for idx, image in enumerate(page_images):  
+#         result = process_single_image(image, proposed_name)  
+#         results.append(result)  
   
-    # Return the collected results as a single array  
-    return results  
+#     # Return the collected results as a single array  
+#     return results  
 
-def analyze_web_common_law(extracted_data: List[str], proposed_name: str) -> str:
-    """
-    Comprehensive analysis of web common law trademark data through three specialized stages.
-    Returns a professional opinion formatted according to legal standards.
-    """
-    # Stage 1: Cited Term Analysis
-    cited_term_analysis = section_four_analysis(extracted_data, proposed_name)
+# def analyze_web_common_law(extracted_data: List[str], proposed_name: str) -> str:
+#     """
+#     Comprehensive analysis of web common law trademark data through three specialized stages.
+#     Returns a professional opinion formatted according to legal standards.
+#     """
+#     # Stage 1: Cited Term Analysis
+#     cited_term_analysis = perform_cited_term_analysis(extracted_data, proposed_name)
     
-    # Stage 2: Component Analysis
-    component_analysis = section_five_analysis(extracted_data, proposed_name)
+#     # Stage 2: Component Analysis
+#     component_analysis = perform_component_analysis(extracted_data, proposed_name)
     
-    # Stage 3: Final Risk Assessment
-    risk_assessment = section_six_analysis(cited_term_analysis, component_analysis, proposed_name)
+#     # Stage 3: Final Risk Assessment
+#     risk_assessment = perform_risk_assessment(cited_term_analysis, component_analysis, proposed_name)
     
-    # Combine all sections into final report
-    final_report = f"""
-WEB COMMON LAW OPINION: {proposed_name} 
+#     # Combine all sections into final report
+#     final_report = f"""
+# WEB COMMON LAW OPINION: {proposed_name}
 
-{cited_term_analysis}
+# {cited_term_analysis}
 
-{component_analysis}
+# {component_analysis}
 
-{risk_assessment}
-"""
-    return final_report
+# {risk_assessment}
+# """
+#     return final_report
 
-def section_four_analysis(extracted_data: List[str], proposed_name: str) -> str:
-    """
-    Perform Section IV: Comprehensive Cited Term Analysis
-    """
-    azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-    api_key = os.getenv("AZURE_OPENAI_API_KEY")
-    model = "gpt-4o"
+# def perform_cited_term_analysis(extracted_data: List[str], proposed_name: str) -> str:
+#     """
+#     Perform Section IV: Comprehensive Cited Term Analysis
+#     """
+#     azure_endpoint = os.getenv("AZURE_ENDPOINT")
+#     api_key = os.getenv("AZURE_API_KEY")
+#     model = "gpt-4o"
 
-    extracted_text = "\n".join([str(item) for item in extracted_data])
+#     extracted_text = "\n".join([str(item) for item in extracted_data])
     
-    prompt = f"""You are a trademark attorney analyzing web common law trademark data.
-Perform Section IV analysis (Comprehensive Cited Term Analysis) with these subsections:
+#     prompt = f"""You are a trademark attorney analyzing web common law trademark data.
+# Perform Section IV analysis (Comprehensive Cited Term Analysis) with these subsections:
 
-1. Identical Cited Terms
-2. One Letter and Two Letter Differences
-3. Phonetically/Semantically/Functionally Similar Terms
+# 1. Identical Cited Terms
+# 2. One Letter and Two Letter Differences
+# 3. Phonetically/Semantically/Functionally Similar Terms
 
-Analyze this web common law data against proposed trademark: {proposed_name}
+# Analyze this web common law data against proposed trademark: {proposed_name}
 
-Extracted Data:
-{extracted_text}
+# Extracted Data:
+# {extracted_text}
 
-Perform comprehensive analysis:
-1. Check for identical cited terms
-2. Analyze one/two letter differences
-3. Identify similar terms (phonetic/semantic/functional)
-4. For each, determine if goods/services are similar
+# Perform comprehensive analysis:
+# 1. Check for identical cited terms
+# 2. Analyze one/two letter differences
+# 3. Identify similar terms (phonetic/semantic/functional)
+# 4. For each, determine if goods/services are similar
 
-Return results in EXACTLY this format:
+# Return results in EXACTLY this format:
 
-Section IV: Comprehensive Cited Term Analysis
-(a) Identical Cited Terms:
-| Cited Term | Owner | Goods & Services | Goods & Services Match |
-| [Term 1] | [Owner] | [Goods/Services] | [True/False] |
+# Section IV: Comprehensive Cited Term Analysis
+# (a) Identical Cited Terms:
+# | Cited Term | Owner | Goods & Services | Goods & Services Match |
+# |------------|--------|------------------|------------------------|
+# | [Term 1] | [Owner] | [Goods/Services] | [True/False] |
 
-(b) One Letter and Two Letter Analysis:
-| Cited Term | Owner | Goods & Services | Difference Type | Goods & Services Match |
-| [Term 1] | [Owner] | [Goods/Services] | [One/Two Letter] | [True/False] |
+# (b) One Letter and Two Letter Analysis:
+# | Cited Term | Owner | Goods & Services | Difference Type | Goods & Services Match |
+# |------------|--------|------------------|----------------|------------------------|
+# | [Term 1] | [Owner] | [Goods/Services] | [One/Two Letter] | [True/False] |
 
-(c) Phonetically, Semantically & Functionally Similar Analysis:
-| Cited Term | Owner | Goods & Services | Similarity Type | Goods & Services Match |
-| [Term 1] | [Owner] | [Goods/Services] | [Phonetic/Semantic/Functional] | [True/False] |
+# (c) Phonetically, Semantically & Functionally Similar Analysis:
+# | Cited Term | Owner | Goods & Services | Similarity Type | Goods & Services Match |
+# |------------|--------|------------------|-----------------|------------------------|
+# | [Term 1] | [Owner] | [Goods/Services] | [Phonetic/Semantic/Functional] | [True/False] |
 
-Evaluation Guidelines:
-- Goods/services match if they overlap with proposed trademark's intended use
-- One letter difference = exactly one character changed/added/removed
-- Two letter difference = exactly two characters changed/added/removed
-- Phonetic similarity = sounds similar when spoken
-- Semantic similarity = similar meaning
-- Functional similarity = similar purpose/use
-- State "None" when no results are found
-- Filter out rows where both match criteria are False
-- Always include complete goods/services text
-"""
+# Evaluation Guidelines:
+# - Goods/services match if they overlap with proposed trademark's intended use
+# - One letter difference = exactly one character changed/added/removed
+# - Two letter difference = exactly two characters changed/added/removed
+# - Phonetic similarity = sounds similar when spoken
+# - Semantic similarity = similar meaning
+# - Functional similarity = similar purpose/use
+# - State "None" when no results are found
+# - Filter out rows where both match criteria are False
+# - Always include complete goods/services text
+# """
 
-    data = {
-        "model": model,
-        "messages": [
-            {
-                "role": "system",
-                "content": "You are a trademark attorney specializing in comprehensive trademark analysis. Provide precise, professional analysis in the exact requested format.",
-            },
-            {
-                "role": "user",
-                "content": prompt,
-            },
-        ],
-        "max_tokens": 2000,
-        "temperature": 0.1,
-    }
+#     data = {
+#         "model": model,
+#         "messages": [
+#             {
+#                 "role": "system",
+#                 "content": "You are a trademark attorney specializing in comprehensive trademark analysis. Provide precise, professional analysis in the exact requested format.",
+#             },
+#             {
+#                 "role": "user",
+#                 "content": prompt,
+#             },
+#         ],
+#         "max_tokens": 2000,
+#         "temperature": 0.1,
+#     }
 
-    headers = {"Content-Type": "application/json", "api-key": api_key}
-    response = requests.post(
-        f"{azure_endpoint}/openai/deployments/{model}/chat/completions?api-version=2024-10-01-preview",
-        headers=headers,
-        data=json.dumps(data),
-    )
+#     headers = {"Content-Type": "application/json", "api-key": api_key}
+#     response = requests.post(
+#         f"{azure_endpoint}/openai/deployments/{model}/chat/completions?api-version=2024-10-01-preview",
+#         headers=headers,
+#         data=json.dumps(data),
+#     )
 
-    if response.status_code == 200:
-        return response.json()["choices"][0]["message"]["content"]
-    return "Failed to generate cited term analysis"
+#     if response.status_code == 200:
+#         return response.json()["choices"][0]["message"]["content"]
+#     return "Failed to generate cited term analysis"
 
-def section_five_analysis(extracted_data: List[str], proposed_name: str) -> str:
-    """
-    Perform Section V: Component Analysis and Crowded Field Assessment
-    (Skips entire section if identical hits exist in cited term analysis)
-    """
-    azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-    api_key = os.getenv("AZURE_OPENAI_API_KEY")
-    model = "gpt-4o"
+# def perform_component_analysis(extracted_data: List[str], proposed_name: str) -> str:
+#     """
+#     Perform Section V: Component Analysis and Crowded Field Assessment
+#     """
+#     azure_endpoint = os.getenv("AZURE_ENDPOINT")
+#     api_key = os.getenv("AZURE_API_KEY")
+#     model = "gpt-4o"
 
-    extracted_text = "\n".join([str(item) for item in extracted_data])
+#     extracted_text = "\n".join([str(item) for item in extracted_data])
     
-    prompt = f"""You are a trademark attorney analyzing web common law components.
-First check if there are any identical cited terms to '{proposed_name}' in this data:
+#     prompt = f"""You are a trademark attorney analyzing web common law components.
+# Perform Section V analysis (Component Analysis) with these subsections:
 
-Extracted Data:
-{extracted_text}
+# 1. Component Breakdown
+# 2. Crowded Field Analysis
 
-IF IDENTICAL TERMS EXIST:
-- Skip entire Section V analysis
-- Return this exact text:
-  "Section V omitted due to identical cited terms"
+# Analyze this web common law data against proposed trademark: {proposed_name}
 
-IF NO IDENTICAL TERMS EXIST:
-Perform Section V analysis (Component Analysis) with these subsections:
-1. Component Breakdown
-2. Crowded Field Analysis
+# Extracted Data:
+# {extracted_text}
 
-Return results in EXACTLY this format:
+# Perform component analysis:
+# 1. Break proposed term into meaningful components
+# 2. For each component, find other terms using that component
+# 3. Perform crowded field analysis
+# 4. Determine goods/services matches
 
-Section V: Component Analysis
-(a) Component Analysis:
+# Return results in EXACTLY this format:
 
-Component 1: [First Component]
-| Cited Term | Owner | Goods & Services | Goods & Services Match |
-| [Term 1] | [Owner] | [Goods/Services] | [True/False] |
+# Section V: Component Analysis
+# (a) Component Analysis:
 
-(b) Crowded Field Analysis:
-- **Total component hits found**: [NUMBER]
-- **Terms with different owners**: [NUMBER] ([PERCENTAGE]%)
-- **Crowded Field Status**: [YES/NO]
-- **Analysis**: 
-  [DETAILED EXPLANATION OF FINDINGS]
+# Component 1: [First Component]
+# | Cited Term | Owner | Goods & Services | Goods & Services Match |
+# |-----------|--------|------------------|------------------------|
+# | [Term 1] | [Owner] | [Goods/Services] | [True/False] |
 
-IMPORTANT:
-1. First check for identical terms before any analysis
-2. If identical terms exist, skip entire Section V
-3. Only perform component and crowded field analysis if NO identical terms exist
-4. Never show any analysis if identical terms are found
-"""
+# (b) Crowded Field Analysis:
+# - **Total component hits found**: [NUMBER]
+# - **Terms with different owners**: [NUMBER] ([PERCENTAGE]%)
+# - **Crowded Field Status**: [YES/NO]
+# - **Analysis**: 
+#   [DETAILED EXPLANATION OF FINDINGS INCLUDING RISK IMPLICATIONS IF FIELD IS CROWDED]
 
-    data = {
-        "model": model,
-        "messages": [
-            {
-                "role": "system",
-                "content": "You are a trademark attorney who FIRST checks for identical terms before deciding whether to perform any Section V analysis.",
-            },
-            {
-                "role": "user",
-                "content": prompt,
-            },
-        ],
-        "max_tokens": 2000,
-        "temperature": 0.1,  # Low temperature for strict rule following
-    }
+# IMPORTANT:
+# 1. Break cited term into meaningful components
+# 2. For each component, find other terms using that component
+# 3. Include FULL goods/services descriptions
+# 4. For crowded field:
+#    - Calculate percentage of distinct owners
+#    - Field is crowded if >50% different owners
+#    - Include detailed explanation
+# 5. Assess distinctiveness for each component
 
-    headers = {"Content-Type": "application/json", "api-key": api_key}
-    response = requests.post(
-        f"{azure_endpoint}/openai/deployments/{model}/chat/completions?api-version=2024-10-01-preview",
-        headers=headers,
-        data=json.dumps(data),
-    )
+# Additional Instructions:
+# - Goods/services match if they overlap with proposed trademark's intended use
+# - For crowded field, calculate:
+#   * Total component hits
+#   * Percentage with different owners
+# - Distinctiveness levels:
+#   * Generic: Common term for the goods/services
+#   * Descriptive: Describes characteristic/quality
+#   * Suggestive: Suggests qualities (requires imagination)
+#   * Arbitrary: Common word unrelated to goods/services
+#   * Fanciful: Invented word
+# - State "None" when no results are found
+# - Filter out rows where both match criteria are False
+# - Always include complete goods/services text
+# """
 
-    if response.status_code == 200:
-        return response.json()["choices"][0]["message"]["content"]
-    return "Failed to generate component analysis"
+#     data = {
+#         "model": model,
+#         "messages": [
+#             {
+#                 "role": "system",
+#                 "content": "You are a trademark attorney specializing in component and crowded field analysis. Provide precise, professional analysis in the exact requested format.",
+#             },
+#             {
+#                 "role": "user",
+#                 "content": prompt,
+#             },
+#         ],
+#         "max_tokens": 2000,
+#         "temperature": 0.1,
+#     }
 
-def section_six_analysis(cited_term_analysis: str, component_analysis: str, proposed_name: str) -> str:
-    """
-    Perform Section VI: Final Risk Assessment with strict rules:
-    - Skip crowded field analysis if identical hits exist
-    - Risk levels only MEDIUM-HIGH or MEDIUM-LOW
-    """
-    azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-    api_key = os.getenv("AZURE_OPENAI_API_KEY")
-    model = "gpt-4o"
+#     headers = {"Content-Type": "application/json", "api-key": api_key}
+#     response = requests.post(
+#         f"{azure_endpoint}/openai/deployments/{model}/chat/completions?api-version=2024-10-01-preview",
+#         headers=headers,
+#         data=json.dumps(data),
+#     )
 
-    prompt = f"""You are a senior trademark attorney preparing a final risk assessment for {proposed_name}.
+#     if response.status_code == 200:
+#         return response.json()["choices"][0]["message"]["content"]
+#     return "Failed to generate component analysis"
 
-**STRICT RULES TO FOLLOW:**
-1. **Identical Hits Take Precedence**:
-   - If ANY identical cited terms exist in Section IV(a), IMMEDIATELY set risk to MEDIUM-HIGH
-   - SKIP ENTIRELY any crowded field analysis in this case
-   - Include note: "Crowded field analysis omitted due to identical cited terms"
+# def perform_risk_assessment(cited_term_analysis: str, component_analysis: str, proposed_name: str) -> str:
+#     """
+#     Perform Section VI: Final Risk Assessment combining all findings
+#     """
+#     azure_endpoint = os.getenv("AZURE_ENDPOINT")
+#     api_key = os.getenv("AZURE_API_KEY")
+#     model = "gpt-4o"
 
-2. **Crowded Field Analysis ONLY When**:
-   - NO identical cited terms exist
-   - Then analyze crowded field from Section V(b)
-   - If crowded field exists (>50% different owners), set risk to MEDIUM-LOW
+#     prompt = f"""You are a senior trademark attorney preparing a final risk assessment.
+# Combine these analysis sections into a comprehensive risk assessment for: {proposed_name}
 
-3. **Risk Level Restrictions**:
-   - Maximum risk: MEDIUM-HIGH (never HIGH)
-   - Minimum risk: MEDIUM-LOW (never LOW)
-   - Only these two possible outcomes
+# Cited Term Analysis:
+# {cited_term_analysis}
 
-**Analysis Sections:**
-Cited Term Analysis:
-{cited_term_analysis}
+# Component Analysis:
+# {component_analysis}
 
-Component Analysis:
-{component_analysis}
+# Prepare Section VI: Web Common Law Risk Assessment with these subsections:
 
-**Required Output Format:**
+# 1. Market Presence
+# 2. Enforcement Patterns
+# 3. Risk Category for Use
+# 4. Combined Risk Assessment
 
-Section VI: Web Common Law Risk Assessment
+# Return results in EXACTLY this format:
 
-Market Presence:
-- [Brief market overview based on findings]
+# Section VI: Web Common Law Risk Assessment
 
-Enforcement Patterns:
-- [List any concerning enforcement patterns if found]
+# Market Presence:
+# - [KEY POINT ABOUT MARKET PRESENCE]
 
-Risk Category for Use:
-- **[MEDIUM-HIGH or MEDIUM-LOW]**
-- [Clear justification based on strict rules above]
+# Enforcement Patterns:
+# - **Known Aggressive Owners**:
+#   * [Owner 1]: [Enforcement patterns]
 
-III. COMBINED RISK ASSESSMENT
+# Risk Category for Use:
+# - **[USE RISK LEVEL: HIGH/MEDIUM/LOW]**
+# - [EXPLANATION OF USE RISK LEVEL]
 
-Overall Risk Category:
-- **[MEDIUM-HIGH or MEDIUM-LOW]**
-- [Detailed explanation following these guidelines:
-   - If identical terms: "Identical cited term(s) found, elevating risk to MEDIUM-HIGH. Crowded field analysis not performed."
-   - If crowded field: "No identical terms found. Crowded field (X% different owners) reduces risk to MEDIUM-LOW."
-   - If neither: "No identical terms and no crowded field, maintaining MEDIUM-LOW risk."]
+# III. COMBINED RISK ASSESSMENT
 
-**Critical Instructions:**
-1. NEVER show crowded field analysis if identical terms exist
-2. ALWAYS use specified risk level terminology
-3. Keep explanations concise but legally precise
-4. Maintain strict adherence to the rules above
-"""
+# Overall Risk Category:
+# - **[OVERALL RISK LEVEL: HIGH/MEDIUM-HIGH/MEDIUM/MEDIUM-LOW/LOW]**
+# - [EXPLANATION INCORPORATING BOTH TRADEMARK AND WEB COMMON LAW FINDINGS]
 
-    data = {
-        "model": model,
-        "messages": [
-            {
-                "role": "system",
-                "content": "You are a trademark risk assessment expert who STRICTLY follows rules about identical hits and crowded fields. Never deviate from the specified risk levels.",
-            },
-            {
-                "role": "user",
-                "content": prompt,
-            },
-        ],
-        "max_tokens": 1500,
-        "temperature": 0.1,  # Low temperature for consistent rule-following
-    }
+# Guidelines:
+# 1. Base assessment strictly on the provided analysis
+# 2. Do not introduce new findings not in the analysis
+# 3. Maintain professional, legal tone
+# 4. Be specific about risk factors
+# 5. Highlight any particularly concerning findings
+# """
 
-    headers = {"Content-Type": "application/json", "api-key": api_key}
-    response = requests.post(
-        f"{azure_endpoint}/openai/deployments/{model}/chat/completions?api-version=2024-10-01-preview",
-        headers=headers,
-        data=json.dumps(data),
-    )
+#     data = {
+#         "model": model,
+#         "messages": [
+#             {
+#                 "role": "system",
+#                 "content": "You are a senior trademark attorney specializing in risk assessment. Provide precise, professional analysis in the exact requested format.",
+#             },
+#             {
+#                 "role": "user",
+#                 "content": prompt,
+#             },
+#         ],
+#         "max_tokens": 1500,
+#         "temperature": 0.1,
+#     }
 
-    if response.status_code == 200:
-        return response.json()["choices"][0]["message"]["content"]
-    return "Failed to generate risk assessment"
+#     headers = {"Content-Type": "application/json", "api-key": api_key}
+#     response = requests.post(
+#         f"{azure_endpoint}/openai/deployments/{model}/chat/completions?api-version=2024-10-01-preview",
+#         headers=headers,
+#         data=json.dumps(data),
+#     )
+
+#     if response.status_code == 200:
+#         return response.json()["choices"][0]["message"]["content"]
+#     return "Failed to generate risk assessment"
 
 # -------------------
 
@@ -1935,31 +1897,31 @@ if uploaded_files:
                 #     progress_bar.progress(i)
 
 
-# PRAVEEN WEB COMMON LAW CODE START'S HERE-------------------------------------------------------------------------------------------------------------------------
+# # PRAVEEN WEB COMMON LAW CODE START'S HERE-------------------------------------------------------------------------------------------------------------------------
 
-                # Updated usage in your Streamlit code would look like:
-                # !!! Function used extract the web common law pages into images
-                full_web_common_law = web_law_page(temp_file_path)                
+#                 # Updated usage in your Streamlit code would look like:
+#                 # !!! Function used extract the web common law pages into images
+#                 full_web_common_law = web_law_page(temp_file_path)                
 
-                progress_bar.progress(50)
-                st.success(
-                    f"Existing Trademarks Data Extracted Successfully for {uploaded_file.name}!"
-                )
+#                 progress_bar.progress(50)
+#                 st.success(
+#                     f"Existing Trademarks Data Extracted Successfully for {uploaded_file.name}!"
+#                 )
 
-                # !!! Function used extract the web common law details from the images using LLM 
-                extracted_web_law = extract_web_common_law(full_web_common_law, proposed_name)  
+#                 # !!! Function used extract the web common law details from the images using LLM 
+#                 extracted_web_law = extract_web_common_law(full_web_common_law, proposed_name)  
 
-                # New comprehensive analysis
-                analysis_result = analyze_web_common_law(extracted_web_law, proposed_name)
+#                 # New comprehensive analysis
+#                 analysis_result = analyze_web_common_law(extracted_web_law, proposed_name)
 
-                # Display results
-                with st.expander("Extracted Web Common Law Data"):
-                    st.write(extracted_web_law)
+#                 # Display results
+#                 with st.expander("Extracted Web Common Law Data"):
+#                     st.write(extracted_web_law)
 
-                with st.expander("Trademark Legal Analysis"):
-                    st.markdown(analysis_result)  # Using markdown for better formatting
+#                 with st.expander("Trademark Legal Analysis"):
+#                     st.markdown(analysis_result)  # Using markdown for better formatting
 
-                # extracted_web_law ----- Web common law stored in this variable 
+#                 # extracted_web_law ----- Web common law stored in this variable 
 
 # PRAVEEN WEB COMMON LAW CODE END'S HERE-------------------------------------------------------------------------------------------------------------------------
 
@@ -1990,6 +1952,16 @@ if uploaded_files:
                 existing_trademarks = nfiltered_list
                 existing_trademarks_unsame = unsame_class_list
 
+
+                for existing_trademark in existing_trademarks:
+                    section_one_analysis(proposed_name, proposed_class, proposed_goods_services, existing_trademark)
+
+                st.write("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+
+                for existing_trademark in existing_trademarks_unsame:
+                    if existing_trademark["international_class_number"] != []:
+                        section_one_analysis(proposed_name, proposed_class, proposed_goods_services, existing_trademark)
+
                 high_conflicts = []
                 moderate_conflicts = []
                 low_conflicts = []
@@ -2005,6 +1977,7 @@ if uploaded_files:
                         proposed_class,
                         proposed_goods_services,
                     )
+                    
                     if conflict is not None:
                         if conflict["conflict_grade"] == "High":
                             high_conflicts.append(conflict)
@@ -2423,14 +2396,11 @@ if uploaded_files:
                 )
                 
                 opinion_output = run_trademark_analysis(proposed_name, proposed_class, proposed_goods_services, conflicts_array)
-                # Ensure extracted_data is defined by assigning the result of extract_web_common_law
-                extracted_data = extract_web_common_law(full_web_common_law, proposed_name)
-                web_common_law_opinion = analyze_web_common_law(extracted_data, proposed_name)
                 st.write("------------------------------------------------------------------------------------------------------------------------------")
                 st.write(opinion_output)
 
                 # Export to Word
-                filename = export_trademark_opinion_to_word(opinion_output, web_common_law_opinion)
+                filename = export_trademark_opinion_to_word(opinion_output)
                 
                 # Download button
                 with open(filename, "rb") as file:
